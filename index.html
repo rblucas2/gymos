@@ -86,7 +86,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;color:inhe
 .sec-label:first-child{margin-top:4px}
 
 /* ---------- Workout cards (day selector) ---------- */
-.day-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:11px;display:flex;align-items:center;gap:14px;position:relative;overflow:hidden;transition:transform .12s,border-color .15s;box-shadow:var(--shadow-card)}
+.day-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:11px;display:flex;align-items:center;gap:14px;position:relative;overflow:hidden;transition:transform .12s,border-color .15s;box-shadow:var(--shadow-card);cursor:pointer}
 .day-card:active{transform:scale(.985)}
 .day-card .bar{position:absolute;left:0;top:0;bottom:0;width:4px}
 .day-card .icon{width:46px;height:46px;border-radius:12px;display:grid;place-items:center;flex-shrink:0;font-size:21px;font-weight:800}
@@ -392,6 +392,9 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;color:inhe
 
 <!-- ============ CRIAR PLANO ============ -->
 <div class="view" id="view-builder"></div>
+
+<!-- ============ HORÁRIO SEMANAL ============ -->
+<div class="view" id="view-schedule"></div>
 
 <!-- ============ MENU ============ -->
 <div class="view" id="view-menu"></div>
@@ -836,6 +839,8 @@ async function loadState(){
   if(!STATE.records) STATE.records = {};
   if(!STATE.customPlans) STATE.customPlans = {};
   if(!STATE.swaps) STATE.swaps = {};
+  if(!STATE.hiddenPlans) STATE.hiddenPlans = {};   // planos embutidos (push/pull/legs/plyo) apagados pelo utilizador
+  if(!STATE.schedule) STATE.schedule = {};          // { 0..6 (getDay()): planKey | 'rest' | 'run' }
   await seedNotionPlans();
 }
 
@@ -926,24 +931,57 @@ function weekStrip(){
     const key = dateKey(d);
     const trained = STATE.log[key] && STATE.log[key].length>0;
     const isToday = key===todayKey();
+    const sched = STATE.schedule && STATE.schedule[d.getDay()];
+    const schedIco = sched==='rest' ? '😴' : sched==='run' ? '🏃' : (sched && planExists(sched)) ? (getPlan(sched).data.icon||'💪') : '';
     html += `<div class="daycell ${isToday?'today':''}">
       <div class="dn">${WD[d.getDay()]}</div>
       <div class="dd">${d.getDate()}</div>
+      ${schedIco ? `<div style="font-size:10px;line-height:1;margin-top:2px">${schedIco}</div>` : ''}
       <div class="dot ${trained?'':'empty'}"></div>
     </div>`;
   }
   return html+'</div>';
 }
 
-// sugere o próximo dia do ciclo PPL com base no último treino de força feito
+// um planKey ainda existe e não foi apagado pelo utilizador?
+function planExists(key){
+  if(!key) return false;
+  if(key.startsWith('custom_')) return !!(STATE.customPlans && STATE.customPlans[key.slice(7)]);
+  if(key.startsWith('plyo_')) return !!PLYO[key.slice(5)] && !(STATE.hiddenPlans && STATE.hiddenPlans[key]);
+  return !!STRENGTH[key] && !(STATE.hiddenPlans && STATE.hiddenPlans[key]);
+}
+
+// "apaga" um plano embutido (push/pull/legs/pliometria) — não apaga o template, só
+// esconde-o da app. Reversível em Menu → Planos escondidos. O histórico mantém-se.
+function hidePlan(key, name){
+  if(!confirm(`Apagar "${name}" da lista de treinos?\n\nPodes voltar a ativá-lo em Menu → Planos escondidos. O histórico já registado mantém-se.`)) return;
+  STATE.hiddenPlans = STATE.hiddenPlans || {};
+  STATE.hiddenPlans[key] = true;
+  saveState();
+  toast('Plano apagado');
+  renderHome();
+}
+function unhidePlan(key){
+  if(STATE.hiddenPlans) delete STATE.hiddenPlans[key];
+  saveState();
+  toast('Plano restaurado');
+  renderMenu();
+}
+
+// sugere o treino de hoje: primeiro pelo horário semanal definido pelo utilizador,
+// com fallback para o ciclo PPL automático (rotação pelo último treino de força feito)
 function suggestNextPlan(){
-  const order = ['push','pull','legs'];
+  const dow = new Date().getDay();
+  const sched = STATE.schedule && STATE.schedule[dow];
+  if(sched && sched!=='rest' && sched!=='run' && planExists(sched)) return sched;
+  const order = ['push','pull','legs'].filter(k=> !(STATE.hiddenPlans && STATE.hiddenPlans[k]));
+  if(!order.length) return null;
   const sessions = [];
   for(const date in STATE.log) STATE.log[date].forEach(s=> sessions.push(s));
   sessions.sort((a,b)=> b.when-a.when);
   const last = sessions.find(s=> order.includes(s.plan));
-  if(!last) return 'push';
-  return order[(order.indexOf(last.plan)+1)%3];
+  if(!last) return order[0];
+  return order[(order.indexOf(last.plan)+1)%order.length];
 }
 
 function renderHome(){
@@ -975,52 +1013,72 @@ function renderHome(){
       <div class="rb-arrow">›</div>
     </div>`;
   } else {
-    const sugKey = suggestNextPlan();
-    const sp = STRENGTH[sugKey];
-    html += `<button class="hero-card" onclick="openSession('${sugKey}')">
-      <div class="hero-badge">✨ Sugestão de hoje · ciclo PPL</div>
-      <div class="hero-main">
-        <div class="hero-ic">${sp.icon}</div>
-        <div><div class="hero-t">${sp.name}</div><div class="hero-s">${sp.exercises.length} exercícios · continua o teu ciclo</div></div>
-      </div>
-      <div class="hero-cta">Começar treino →</div>
-    </button>`;
+    const dow = now.getDay();
+    const sched = STATE.schedule && STATE.schedule[dow];
+    if(sched==='rest'){
+      html += `<div class="hero-card">
+        <div class="hero-badge">🗓️ Hoje, pelo teu horário</div>
+        <div class="hero-main"><div class="hero-ic">😴</div><div><div class="hero-t">Descanso</div><div class="hero-s">Aproveita para recuperar — os alongamentos continuam disponíveis</div></div></div>
+      </div>`;
+    } else if(sched==='run'){
+      html += `<div class="hero-card">
+        <div class="hero-badge">🗓️ Hoje, pelo teu horário</div>
+        <div class="hero-main"><div class="hero-ic">🏃</div><div><div class="hero-t">Corrida</div><div class="hero-s">Ainda sem registo dedicado nesta app — regista no teu relógio</div></div></div>
+      </div>`;
+    } else {
+      const sugKey = suggestNextPlan();
+      if(sugKey){
+        const sp = getPlan(sugKey).data;
+        const bySchedule = sched && sched===sugKey;
+        html += `<button class="hero-card" onclick="openSession('${sugKey}')">
+          <div class="hero-badge">${bySchedule?'🗓️ Hoje, pelo teu horário':'✨ Sugestão de hoje · ciclo PPL'}</div>
+          <div class="hero-main">
+            <div class="hero-ic">${sp.icon||'💪'}</div>
+            <div><div class="hero-t">${sp.name}</div><div class="hero-s">${sp.exercises.length} exercícios · continua o teu ciclo</div></div>
+          </div>
+          <div class="hero-cta">Começar treino →</div>
+        </button>`;
+      }
+    }
   }
 
   html += `<div class="sec-label">💪 Treino de Força (PPL)</div>`;
   for(const key in STRENGTH){
+    if(STATE.hiddenPlans && STATE.hiddenPlans[key]) continue;
     const p = STRENGTH[key];
     const n = p.exercises.length;
-    html += `<button class="day-card" onclick="openSession('${key}')" style="width:100%;text-align:left">
+    html += `<div class="day-card" onclick="openSession('${key}')" style="cursor:pointer">
       <div class="bar" style="background:${p.color}"></div>
       <div class="icon" style="background:linear-gradient(135deg,${p.color}40,${p.color}14);color:${p.color}">${p.icon}</div>
       <div class="info"><h3>${p.name}</h3><p>${n} exercícios · + aquecimento, corretivo e alongamento</p></div>
-      <div class="chev">›</div>
-    </button>`;
+      <button class="hdel" onclick="event.stopPropagation();hidePlan('${key}','${esc(p.name)}')" aria-label="Apagar plano">🗑</button>
+    </div>`;
   }
 
   html += `<div class="sec-label">⚡ Pliometria (futebol · 2×/sem)</div>`;
   for(const key in PLYO){
+    const pkey = 'plyo_'+key;
+    if(STATE.hiddenPlans && STATE.hiddenPlans[pkey]) continue;
     const p = PLYO[key];
     const n = p.exercises.length;
-    html += `<button class="day-card" onclick="openSession('plyo_${key}')" style="width:100%;text-align:left">
+    html += `<div class="day-card" onclick="openSession('${pkey}')" style="cursor:pointer">
       <div class="bar" style="background:${p.color}"></div>
       <div class="icon" style="background:linear-gradient(135deg,${p.color}40,${p.color}14);color:${p.color}">${p.icon}</div>
       <div class="info"><h3>${p.name}</h3><p>${p.sub} · ${n} exercícios + suporte</p></div>
-      <div class="chev">›</div>
-    </button>`;
+      <button class="hdel" onclick="event.stopPropagation();hidePlan('${pkey}','${esc(p.name)}')" aria-label="Apagar plano">🗑</button>
+    </div>`;
   }
 
   if(STATE.customPlans && Object.keys(STATE.customPlans).length){
     html += `<div class="sec-label">🛠️ Planos personalizados</div>`;
     for(const id in STATE.customPlans){
       const p = STATE.customPlans[id];
-      html += `<button class="day-card" onclick="openSession('custom_${id}')" style="width:100%;text-align:left">
+      html += `<div class="day-card" onclick="openSession('custom_${id}')" style="cursor:pointer">
         <div class="bar" style="background:${p.color||'var(--accent)'}"></div>
         <div class="icon" style="background:linear-gradient(135deg,${p.color||'var(--accent)'}40,${p.color||'var(--accent)'}14);color:${p.color||'var(--accent)'}">${p.icon||'🛠️'}</div>
         <div class="info"><h3>${p.name}</h3><p>${p.exercises.length} exercícios · plano personalizado</p></div>
-        <div class="chev">›</div>
-      </button>`;
+        <button class="hdel" onclick="event.stopPropagation();deleteCustomPlan('${id}')" aria-label="Apagar plano">🗑</button>
+      </div>`;
     }
   }
   html += `<button class="day-card" onclick="openBuilder()" style="width:100%;text-align:left;border-style:dashed">
@@ -1401,6 +1459,49 @@ function choosePickerExercise(libId){
   } else if(PICKER.mode==='build'){
     addToBuilder(libId);
   }
+}
+
+/* ============================================================
+   HORÁRIO SEMANAL — atribui um plano (ou descanso/corrida) a cada dia
+   ============================================================ */
+function openSchedule(){
+  renderScheduleView();
+  nav('schedule');
+  $$('.navbtn').forEach(b=>b.classList.remove('active'));
+}
+// opções disponíveis para um dia: por definir / descanso / corrida / planos ativos
+function scheduleOptions(){
+  const opts = [{key:'', name:'Por definir', icon:'—'}, {key:'rest', name:'Descanso', icon:'😴'}, {key:'run', name:'Corrida', icon:'🏃'}];
+  for(const k in STRENGTH){ if(!(STATE.hiddenPlans && STATE.hiddenPlans[k])) opts.push({key:k, name:STRENGTH[k].name, icon:STRENGTH[k].icon}); }
+  for(const k in PLYO){ const pk='plyo_'+k; if(!(STATE.hiddenPlans && STATE.hiddenPlans[pk])) opts.push({key:pk, name:PLYO[k].name, icon:PLYO[k].icon}); }
+  for(const id in (STATE.customPlans||{})){ const p=STATE.customPlans[id]; opts.push({key:'custom_'+id, name:p.name, icon:p.icon||'🛠️'}); }
+  return opts;
+}
+function scheduleRow(dow){
+  const val = (STATE.schedule && STATE.schedule[dow]) || '';
+  const opts = scheduleOptions();
+  return `<div class="set-item" style="gap:12px">
+    <div class="si-ic" style="width:40px;font-size:12px;font-weight:700">${WD[dow]}</div>
+    <select class="lib-search" style="margin:0;padding:9px 10px" onchange="setScheduleDay(${dow}, this.value)">
+      ${opts.map(o=>`<option value="${o.key}" ${val===o.key?'selected':''}>${o.icon} ${o.name}</option>`).join('')}
+    </select>
+  </div>`;
+}
+function renderScheduleView(){
+  const html = `
+    <button class="backlink" onclick="nav('menu')">‹ Voltar</button>
+    <div class="sec-label">🗓️ Horário semanal</div>
+    <div class="intro">Define o que treinas em cada dia. A sugestão do ecrã "Hoje" passa a seguir este horário (com o ciclo PPL automático como reserva nos dias sem plano definido).</div>
+    <div class="set-card">
+      ${[1,2,3,4,5,6,0].map(dow=>scheduleRow(dow)).join('')}
+    </div>
+  `;
+  $('#view-schedule').innerHTML = html;
+}
+function setScheduleDay(dow, val){
+  STATE.schedule = STATE.schedule || {};
+  if(val) STATE.schedule[dow] = val; else delete STATE.schedule[dow];
+  saveState();
 }
 
 /* ============================================================
@@ -1921,6 +2022,25 @@ function deleteSession(date, when){
   }
 }
 
+// resumo curto do horário definido, para mostrar no Menu (ex.: "3 dias definidos de 7")
+function scheduleSummary(){
+  const days = [0,1,2,3,4,5,6].filter(d=> STATE.schedule && STATE.schedule[d]);
+  return days.length ? `${days.length} dia${days.length!==1?'s':''} definido${days.length!==1?'s':''} de 7 · toca para editar` : 'Ainda não definiste nenhum dia';
+}
+// lista os planos embutidos que o utilizador apagou, com opção de restaurar
+function hiddenPlansList(){
+  const hidden = Object.keys(STATE.hiddenPlans||{});
+  if(!hidden.length) return '';
+  const rows = hidden.map(key=>{
+    let name, icon;
+    if(STRENGTH[key]){ name=STRENGTH[key].name; icon=STRENGTH[key].icon; }
+    else if(key.startsWith('plyo_') && PLYO[key.slice(5)]){ name=PLYO[key.slice(5)].name; icon=PLYO[key.slice(5)].icon; }
+    else { name=key; icon='📦'; }
+    return `<button class="set-item" onclick="unhidePlan('${key}')"><div class="si-ic">${icon}</div><div class="si-tx"><div class="a">${name}</div><div class="b">Apagado — toca para restaurar</div></div><div class="si-ar">↺</div></button>`;
+  }).join('');
+  return `<div class="sec-label">Planos escondidos</div><div class="set-card">${rows}</div>`;
+}
+
 function renderMenu(){
   $('#barTitle').textContent='Menu';
   $('#barSub').textContent='Definições e dados';
@@ -1932,16 +2052,12 @@ function renderMenu(){
 
   <div class="sec-label">Planos</div>
   <div class="set-card">
+    <button class="set-item" onclick="openSchedule()"><div class="si-ic">🗓️</div><div class="si-tx"><div class="a">Horário semanal</div><div class="b">${scheduleSummary()}</div></div><div class="si-ar">›</div></button>
     <button class="set-item" onclick="openLibrary()"><div class="si-ic">📚</div><div class="si-tx"><div class="a">Biblioteca de exercícios</div><div class="b">Ginásio, pliometria e correção — dica de execução + vídeo</div></div><div class="si-ar">›</div></button>
     <button class="set-item" onclick="openBuilder()"><div class="si-ic">🛠️</div><div class="si-tx"><div class="a">Criar plano personalizado</div><div class="b">Monta o teu próprio treino a partir da biblioteca</div></div><div class="si-ar">›</div></button>
   </div>
 
-  <div class="sec-label">Plano semanal sugerido</div>
-  <div class="set-card">
-    <div class="set-item"><div class="si-ic">💪</div><div class="si-tx"><div class="a">Força — Push / Pull / Legs</div><div class="b">3×/semana · com suporte integrado</div></div></div>
-    <div class="set-item"><div class="si-ic">⚡</div><div class="si-tx"><div class="a">Pliometria A + B</div><div class="b">2×/semana · dias separados do PPL</div></div></div>
-    <div class="set-item"><div class="si-ic">⚽</div><div class="si-tx"><div class="a">Futebol</div><div class="b">Treinos + jogo do Amiais de Baixo</div></div></div>
-  </div>
+  ${hiddenPlansList()}
 
   <div class="sec-label">Dados</div>
   <div class="set-card">
