@@ -136,10 +136,9 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;color:inhe
 
 /* ---------- Figura PT (demonstração animada, substitui vídeos externos) ---------- */
 .pt-demo{margin-bottom:11px}
-.pt-stage{background:var(--bg);border-radius:11px;padding:10px 0 6px;display:flex;justify-content:center;align-items:center}
-.pt-fig{color:var(--accent);overflow:visible}
-.pt-fig line{stroke:currentColor;stroke-width:5;stroke-linecap:round}
-.pt-fig .pt-head{fill:currentColor}
+.pt-video{position:relative;width:100%;padding-top:56.25%;background:#000;border-radius:11px;overflow:hidden}
+.pt-video iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.pt-novideo{padding:22px 14px;text-align:center;color:var(--text-dim);font-size:13px;background:var(--bg);border-radius:11px}
 .pt-tip{display:flex;gap:9px;align-items:flex-start;background:var(--bg);border-radius:9px;padding:10px 12px;margin-top:8px}
 .pt-tip-ico{flex-shrink:0;line-height:1.4}
 .pt-tip-tx{font-size:12.5px;color:var(--text-dim);line-height:1.5}
@@ -678,80 +677,140 @@ const STRETCH_PLAN = {
 };
 
 /* ============================================================
-   FIGURA PT — demonstração visual animada de como fazer o exercício,
-   como se tivesses um treinador ao lado a mostrar o movimento. É um
-   boneco articulado desenhado em SVG (sem vídeo, sem ligação a fora
-   da app) que se move em loop consoante o "padrão de movimento" do
-   exercício, mais uma dica de execução por baixo.
+   DEMO PT — vídeo real embutido (YouTube, sem sair da app) a mostrar
+   como fazer o exercício, como se tivesses um treinador ao lado, mais
+   uma dica de execução por baixo. EXERCISE_VIDEOS mapeia o nome exato
+   do exercício (tal como aparece nos dados) para um vídeo verificado.
    ============================================================ */
-// pivôs de cada junta no espaço do SVG (viewBox 100x130)
-const PT_PIVOTS = { torso:[50,72], armL:[40,32], armR:[60,32], forearmL:[32,50], forearmR:[68,50], thighL:[44,72], thighR:[56,72], shinL:[42,98], shinR:[58,98] };
-function ptRotAnim(jointName, deg, dur){
-  const p = PT_PIVOTS[jointName]; if(!p) return '';
-  const [cx,cy] = p;
-  return `<animateTransform attributeName="transform" type="rotate" values="0 ${cx} ${cy};${deg} ${cx} ${cy};0 ${cx} ${cy}" keyTimes="0;0.5;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1" dur="${dur}s" repeatCount="indefinite"/>`;
-}
-function ptRootAnim(root, dur){
-  if(!root) return '';
-  if(root.type==='translate'){
-    const [tx,ty] = root.to;
-    return `<animateTransform attributeName="transform" type="translate" values="0,0;${tx},${ty};0,0" keyTimes="0;0.5;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1" dur="${dur}s" repeatCount="indefinite"/>`;
-  }
-  const [cx,cy] = root.pivot, d = root.to;
-  return `<animateTransform attributeName="transform" type="rotate" values="0 ${cx} ${cy};${d} ${cx} ${cy};0 ${cx} ${cy};${-d} ${cx} ${cy};0 ${cx} ${cy}" keyTimes="0;0.25;0.5;0.75;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1" dur="${dur}s" repeatCount="indefinite"/>`;
-}
-// cada padrão descreve, por junta bilateral (mesma amplitude, sinais opostos automaticamente
-// nos dois lados p/ ficar simétrico), ou por junta única (torsoOnly), ou por movimento de
-// corpo inteiro (root: roda ou translada a figura toda) — tudo em graus/px, ida-e-volta.
-const PT_PATTERNS = {
-  squat:          { thigh:34, shin:-52, torsoOnly:8, dur:1.8 },
-  hinge:          { torsoOnly:36, dur:1.8 },
-  press:          { arm:-58, forearm:68, dur:1.5 },
-  pull:           { arm:40, forearm:-52, dur:1.5 },
-  'lateral-raise':{ arm:88, dur:1.5 },
-  curl:           { forearm:-112, dur:1.3 },
-  'triceps-ext':  { arm:-95, forearm:70, dur:1.4 },
-  jump:           { thigh:38, shin:-58, torsoOnly:8, dur:1.0 },
-  sprint:         { thigh:40, shin:-36, arm:-40, dur:0.8 },
-  'calf-raise':   { root:{type:'translate', to:[0,-6]}, dur:1.3 },
-  'lateral-jump': { root:{type:'translate', to:[12,0]}, dur:1.0 },
-  'plank-hold':   { root:{type:'rotate', pivot:[50,105], to:2.5}, dur:2.6 },
-  rotation:       { root:{type:'rotate', pivot:[50,72], to:15}, dur:2.2 },
-  'stretch-hold': { root:{type:'rotate', pivot:[50,105], to:2}, dur:3.2 },
+function escAttr(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+const EXERCISE_VIDEOS = {
+  // ---- Força (Push/Pull/Legs) ----
+  'Barbell Bench Press': { id:'Pp8rHcFVIYg', title:'Barbell Bench Press – Proper Form Tutorial (Beginner Friendly)' },
+  'Cable Seated Fly': { id:'ksiKd_SV530', title:'How to Seated Cable Fly: Build Your Upper Chest and Inner Pecs' },
+  'Barbell Seated Shoulder Press': { id:'YNK3eQVevIs', title:'How-To Perform Seated Barbell Shoulder Press | Shoulders Exercise Tutorial' },
+  'Cable Single Arm Lateral Raise': { id:'Az_0nsym9AY', title:'How To Do A Standing Single Arm Cable Lateral Raise' },
+  'Cable Tricep Pushdown': { id:'-zLyUAo1gMw', title:'How to do the Cable Tricep Pushdown! | 2 Minute Tutorial' },
+  'Push-Up': { id:'mECzqUIDWfU', title:'How to do a proper push-up' },
+  'Cable Tricep Extension': { id:'LxfT82QtX84', title:'How To Do Cable Tricep Extensions' },
+  'Pull-Up': { id:'TMnxKjdYcME', title:'How To Do A Pull Up: Correct Form & Technique' },
+  'Cable Lat Pulldown': { id:'a9Yn233ZoWs', title:'Cable Lat Pulldown | How-To Demo for Back Strength & Posture' },
+  'Cable Seated Row': { id:'OeLb503NZHk', title:'Seated Cable Row Tutorial: Build a Strong Back with Proper Form' },
+  'Cable Single Arm Seated High Row': { id:'qxd-LlAfgO0', title:'How To Do Single Arm Cable Seated High Row' },
+  'Cable Curl': { id:'16aEi1a68E0', title:'How to Do the Cable Biceps Curl With Perfect Form' },
+  'Dumbbell Hammer Curl': { id:'FNvndC4Ov04', title:'How to Dumbbell Hammer Curl | Form Tutorial' },
+  'Barbell Squat': { id:'f-KL4VNN96E', title:'How To Barbell Squat Correctly (Beginner Tutorial)' },
+  'Barbell Bulgarian Split Squat': { id:'7_kI9wSskjI', title:'Barbell Bulgarian Split Squats (Tutorial + Tips)' },
+  'Barbell Romanian Deadlift': { id:'xgusDooVfKU', title:'How to do a Romanian Deadlift (Barbell) | Proper Form & Technique' },
+  'Barbell Hip Thrust': { id:'pBH7pKHn-dI', title:'How to Perform Barbell Hip Thrusts | Glutes Exercise Tutorial' },
+  'Dumbbell Lunge': { id:'mE0W3QX9mak', title:'Proper Barbell and Dumbbell Lunge Form' },
+  'Dumbbell Standing Calf Raise': { id:'SRUtMJ0tE2A', title:'Dumbbell Calf Raises Tutorial' },
+  // ---- Pliometria ----
+  'Pogo Jumps': { id:'j0nl5dWuqN4', title:'Pogo Jumps Tutorial - Proper Form and Technique' },
+  'Squat Jumps': { id:'tZSYZdtbONc', title:'How to do a Squat Jump | Proper Form & Technique' },
+  'Box Jumps': { id:'3INzGHuk23U', title:'How to Do a Box Jump (Proper Form & Technique)' },
+  'Broad Jump': { id:'GR5JVcHHS_Q', title:'Broad Jump Tutorial | Correct Form, Common Mistakes & Tips' },
+  'Single-Leg Bounds': { id:'I7ChaipZVM4', title:'Single Leg Bounds for Speed Training' },
+  'Sprint 20m': { id:'b23i9MRqjf8', title:'Sprinting Technique | Faster Starts - Acceleration & Reaction Time' },
+  'Lateral Bounds (skater)': { id:'usZgF8TBWcA', title:'Skater Jumps Lateral Bounds' },
+  'Lateral Hurdle Hops': { id:'GpxnCGi7W_4', title:'Lateral Hurdle Hops' },
+  'Depth Drop + Stick': { id:'WmcEiWGOiPg', title:'Depth Drops Landing Mechanics' },
+  '5-10-5 Pro Agility': { id:'qYDXaXRodWc', title:'How to Properly Run the Pro Agility (5-10-5)' },
+  'Reactive Cuts (cone)': { id:'jJnGQbhbU64', title:'Reactive 4 Cone Agility Drills | Speed Training' },
+  // ---- Aquecimento / corretivo / alongamento ----
+  'Arm circles + cross-body swings': { id:'oZBt5fn0tpk', title:'Arm circles and swings' },
+  'T-spine open books': { id:'fBPoTgQRL6g', title:'Open Book Stretch | Thoracic Spine Mobility Exercise' },
+  'Mobilização torácica (foam roller)': { id:'SwWLTTGqgRk', title:'Thoracic Spine Mobilization Extension - Foam Roller' },
+  'Banded Pull-Apart': { id:'IOt749s7iKo', title:'Banded Pull Aparts (Horizontal) - Tutorial' },
+  'Scapular Push-Ups': { id:'uN3HsCkcbSA', title:'Best Scapular Stabilization Exercise [Scapular Pushup Tutorial]' },
+  'Full Can': { id:'nT3jAMbMahQ', title:'The Full Can Shoulder Exercise' },
+  'Side-Lying External Rotation': { id:'fO9SE9fgne8', title:'Shoulder External Rotation With Towel Roll' },
+  'Plank (anti-extensão)': { id:'oLNtHe_c7-Q', title:'Forearm Plank | Core Strength Exercise Demonstration' },
+  'Alongamento de peitoral (porta)': { id:'WHE7_ilKsy8', title:'Doorway Chest Stretch' },
+  'Couch stretch (flexor da anca)': { id:'sWquwUNscy0', title:'Hip Flexor Couch Stretch' },
+  'Couch stretch (flexor anca)': { id:'sWquwUNscy0', title:'Hip Flexor Couch Stretch' },
+  'Arm swings (horiz + vert)': { id:'5tXrjavXcp8', title:'Horizontal and Vertical Arm Swings' },
+  'Standing thoracic rotations': { id:'PWmNVcs8rJY', title:'Standing Thoracic Rotation' },
+  'Cat-Camel': { id:'dRXO0agekxA', title:'Cat Camel Exercise (AKA Cat Cow) for Thoracic Spine Mobility' },
+  'Banded External Rotation': { id:'ybNV36DoRfY', title:'Banded Shoulder External Rotation' },
+  'Scapular Wall Slides': { id:'c2GODofCUtY', title:'Scapular Wall Slides with Y Lift Off' },
+  'Hanging Scapular Retractions': { id:'pK-EQ0QVb3g', title:'Hanging Scapular Retraction' },
+  'Pallof Press (anti-rotação)': { id:'dBAmQ9bx3JA', title:'Pallof Press Tutorial | Best Anti-Rotation Core Exercise' },
+  'Bird-Dog': { id:'f7QGguR43fw', title:'Bird Dog Exercise Tutorial' },
+  'Figure-4 (glúteo/piriforme)': { id:'VgjgTGnBkx0', title:'How To Do Figure 4 Stretch' },
+  'Alongamento de dorsais': { id:'4D1bdOVio2A', title:'Standing Lat Stretch' },
+  'Leg swings (frente-trás + lateral)': { id:'korxBhGzzJE', title:"Leg Swings Warm-Up" },
+  'Walking lunges c/ rotação': { id:'11iC8jlYP5A', title:'Walking Lunge with Rotation Tutorial' },
+  "World's greatest stretch": { id:'T6j7BpxeqqU', title:"World's Greatest Stretch | Tutorial" },
+  'Banded Ankle Mobilization': { id:'xGji6K6tqT0', title:'Banded Ankle Dorsiflexion Mobilization' },
+  '90/90 Hip Switch': { id:'HUZimFZJZWU', title:'How to Do the 90/90 Switch for Hip Mobility' },
+  'Clamshell c/ banda': { id:'xgJfmnWHiyk', title:'How To Do Clam Shell With Resistance Band' },
+  'Short Foot / Foot Arch': { id:'mRC_3U2XBP0', title:'Short Foot Exercise for Foot Activation' },
+  'Single-Leg Balance': { id:'6dUCEwQLixU', title:'Single Leg Balance Drill' },
+  'Glute Bridge c/ banda': { id:'gOOo1nmydeA', title:'Exercise Tutorial: Resisted Glute Bridge With Band' },
+  'Side-Lying Hip Internal Rotation': { id:'_zYsySnG9r0', title:'Side-Lying Hip Internal Rotation' },
+  'Copenhagen Plank (joelhos)': { id:'z4B2Z8ZwrIs', title:'Adductor Plank from the Knee (Beginner Copenhagen Plank)' },
+  'Isquiotibiais (deitado c/ banda)': { id:'O4mmCtewAJ8', title:'How to do a Lying Hamstring Stretch with Band' },
+  'Quadríceps': { id:'kzAsm4WQqvQ', title:'How To Do A Standing Quad Stretch' },
+  'Gémeos + sóleo (parede)': { id:'MvkFUkOjTQ8', title:'Standing Wall Soleus And Calf Stretch' },
+  'Alongamento cruzado de ombro': { id:'1Sfl3iYM1Jg', title:'Cross Body Shoulder Stretch Tutorial' },
+  'Tríceps sobre a cabeça': { id:'nbHOmIYMazk', title:'Overhead Tricep Stretch' },
+  'Alongamento de trapézio/pescoço': { id:'2CI6zoVUpxM', title:'Neck Stretch for Tight Traps' },
+  'Rotação torácica (livro aberto)': { id:'fBPoTgQRL6g', title:'Open Book Stretch | Thoracic Spine Mobility Exercise' },
+  'Borboleta (adutores)': { id:'Xf8W0Q3MePE', title:'Sitting Adductor Stretch or Butterfly Stretch' },
+  // ---- Arquivo Notion ----
+  'Hammer Curl': { id:'BRVDS6HVR9Q', title:'How To Perform Hammer Curls | Biceps Exercise Tutorial' },
+  'Ez Barbell Curl': { id:'5NsFLGUf0Fo', title:'How To EZ Bar Curl With Perfect Form' },
+  'Bayesian Cable Curl': { id:'4O24gFksZ04', title:'How To: Bayesian Cable Curl' },
+  'Machine Preacher Curl': { id:'R-8Sa0_qiws', title:'How to Properly Do The Machine Preacher Curl' },
+  'Preacher Hammer Curl': { id:'32W1sB5DkHY', title:'Preacher Hammer Curl - Biceps Exercises' },
+  'Barbell Curl': { id:'JJB8XgKltA8', title:'Barbell Curls | Biceps | How-To Exercise Tutorial' },
+  '21s': { id:'oq7jXQP3Fk8', title:'How To Do 21s [one of the best bicep exercises]' },
+  'Standing Cable Curl': { id:'aLRv0hRiXhc', title:'How To Do A Standing Cable Curl' },
+  'Dumbbell Preacher Curl': { id:'gSsEC9O6NYU', title:'Dumbbell Preacher Curl for Beginners | Proper Form' },
+  'Incline Curl': { id:'DCe8f6vMe9A', title:'Stop Screwing Up Incline Dumbbell Curls (Proper Form!)' },
+  'Standing Dumbbell': { id:'6DeLZ6cbgWQ', title:'How to Perform Standing Dumbbell Bicep Curls' },
+  'Cable Rows': { id:'EU7bOadUsNI', title:'Seated Cable Row - Proper Form & Technique' },
+  'Mid Grip Cable Row': { id:'XaHV_8Nbyug', title:'Seated Close Grip Cable Row (Exercise Tutorial + Form Tips)' },
+  'Chest Suported Rows': { id:'gdoaioGPXfE', title:'How to Do a Chest Supported Row' },
+  'Meadows Row': { id:'G-jU1aPVhnY', title:'How to Meadows Row "The Right Way"' },
+  'Cable Lat Pull Over': { id:'2aWk3hF2tVg', title:'How To Cable Lat Pullover Properly' },
+  'Neutral Grip Lat Pulldowns': { id:'ywhh5jbw1PI', title:'Neutral Grip Lat Pulldown Tutorial' },
+  'Barbell Row': { id:'rqTOAM8WoeM', title:'Barbell Bent Over Row Tutorial - Proper Form and Technique' },
+  'Kneeling 1 Arm Lat Pulldown': { id:'Vu3OrBHrMNk', title:'How To Do A Half Kneeling Single Arm Lat Pulldown' },
+  'Wide Grip Pull Up': { id:'9A6NPVPzkqQ', title:'How to Do Wide Grip Pullups | Perfect Form in 30 Seconds' },
+  'Cross Body Lat Pull Around': { id:'4xHF_pMbEsk', title:'How To: ½ Kneeling Cable Cross Body Lat Pull Around' },
+  'Wide Grip Lat Pulldowns': { id:'j6KuKd_N8uU', title:'How to Do Wide Grip Lat Pulldowns Correctly' },
+  'Arnold Style Side Lying Dumbbell Raise': { id:'wA0ibOy6wlM', title:'1DB Side Lying Arnold Lateral Raise' },
+  'Seated Machine Lateral Raise': { id:'IropE3iOk2c', title:'Machine Lateral Raise | Proper Form Tutorial' },
+  'Standing Machine Lateral Raise': { id:'MBS_cftGVr8', title:'Standing Lateral Raise Machine Tutorial' },
+  'Machine Shoulder Press': { id:'e5gJP7quyGk', title:'Shoulder Press Machine (With Variations) | Proper Technique' },
+  'Lateral Raise': { id:'nnH63icHYXY', title:'Dumbbell Lateral Raise | Proper Form Tutorial' },
+  'Lean-in Lateral Raise': { id:'bYAbklyK4_c', title:'Lean In Lateral Raise' },
+  'Cable Lateral Raise': { id:'zpbm-xRHB6k', title:'Cable Lateral Raise | Proper Form Tutorial' },
+  'Barbell Overhead Press': { id:'bMksDb5a3P0', title:'How to Overhead Press (Standing Barbell) — Proper Form & Technique' },
+  'Seated Overhead Press': { id:'djDAmhxZQME', title:'Seated Overhead Dumbbell Press | Proper Form' },
+  'Dumbbell Overhead Press': { id:'XOFmNo9F-JQ', title:'Dumbbell Overhead Press | Proper Form & Technique Guide' },
+  'Upright Rows': { id:'S01i1Xh9Ots', title:'Barbell Upright Row - Proper Form & Technique' },
+  'Cable Y-Raise': { id:'NBkMIWWkIKQ', title:'How To Cable Y-Raise (Grow Your Medial Delts)' },
+  'Seated Cable Peach Fly': { id:'ksiKd_SV530', title:'How to Seated Cable Fly: Build Your Upper Chest and Inner Pecs' },
+  'Smith Machine Incline Bench Press': { id:'_SQoFGYBrb4', title:'How To Incline Bench Press On Smith Machine (Beginner)' },
+  'Push Ups': { id:'mECzqUIDWfU', title:'How to do a proper push-up' },
+  'Machine Chest Press': { id:'pLofEAcfsO8', title:'Machine Chest Press | Proper Form Tutorial' },
+  'Bench Press': { id:'gRVjAtPip0Y', title:'How to Perform Bench Press - Tutorial & Proper Form' },
+  'Cable Crossovers': { id:'XY6JrX1wyxk', title:'How to do a Cable Crossover | Proper Form & Technique' },
+  'Dips': { id:'BNi3UmLyV8Q', title:'How to Build a Bigger Chest: The Perfect Dip (Full Guide)' },
+  'Incline Bench Press': { id:'O9x7xRhtA9Q', title:'Incline Barbell Bench Press Tutorial - Proper Form and Technique' },
+  'Flat Dumbbell Press': { id:'M0tN99QgPyU', title:'How to Do the Flat Dumbbell Bench Press | Perfect Form in 30 Seconds' },
+  'Pec Deck': { id:'ybi3NPUK47M', title:'How to Do Pec Flyes on the Pec Deck Machine (Full Tutorial)' },
+  'Machine Dips': { id:'snKz3KZw6GA', title:'Tricep Dip Machine | Proper Form Tutorial' },
+  'Tricep Pushdown': { id:'ozwo9RGm7QU', title:'How to Do a Tricep Pushdown | Tutorial for Proper Form' },
+  'Close Grip Dips': { id:'AE4xaqTICTA', title:'Tricep Dip Tutorial - Proper Form and Technique' },
+  'Skullcrusher': { id:'9baX4-wEYx8', title:'How to Perform Skull Crushers - Triceps Exercise Tutorial' },
+  'Overhead Tricep Extension': { id:'W6h3t9mkRrY', title:'Overhead Triceps Extension | Proper Form Tutorial' },
+  'Cable Tricep Kickbacks': { id:'Rmi70NbBv24', title:'How to Properly Do Cable Tricep Kickbacks' },
+  'Dumbbell French Press': { id:'9XEUXUp7h2c', title:'Dumbbell French Press Tutorial' },
+  'Diamond Push Ups': { id:'kGhDnFwMY3E', title:'Diamond Push Ups For Beginners | Proper Form & Progression' },
 };
-function ptFigureSVG(pattern){
-  const p = PT_PATTERNS[pattern] || PT_PATTERNS['stretch-hold'];
-  const dur = p.dur || 2;
-  const armL = p.arm!=null ? ptRotAnim('armL', p.arm, dur) : '';
-  const armR = p.arm!=null ? ptRotAnim('armR', -p.arm, dur) : '';
-  const forearmL = p.forearm!=null ? ptRotAnim('forearmL', p.forearm, dur) : '';
-  const forearmR = p.forearm!=null ? ptRotAnim('forearmR', -p.forearm, dur) : '';
-  const thighL = p.thigh!=null ? ptRotAnim('thighL', p.thigh, dur) : '';
-  const thighR = p.thigh!=null ? ptRotAnim('thighR', -p.thigh, dur) : '';
-  const shinL = p.shin!=null ? ptRotAnim('shinL', p.shin, dur) : '';
-  const shinR = p.shin!=null ? ptRotAnim('shinR', -p.shin, dur) : '';
-  const torso = p.torsoOnly!=null ? ptRotAnim('torso', p.torsoOnly, dur) : '';
-  const root = ptRootAnim(p.root, dur);
-  return `<svg class="pt-fig" viewBox="0 0 100 130" width="84" height="109" aria-hidden="true">
-    <g>${root}
-      <g><line x1="44" y1="72" x2="42" y2="98"/>${thighL}
-        <g><line x1="42" y1="98" x2="40" y2="122"/>${shinL}</g>
-      </g>
-      <g><line x1="56" y1="72" x2="58" y2="98"/>${thighR}
-        <g><line x1="58" y1="98" x2="60" y2="122"/>${shinR}</g>
-      </g>
-      <g><line x1="50" y1="72" x2="50" y2="30"/>${torso}
-        <circle class="pt-head" cx="50" cy="16" r="9"/>
-        <g><line x1="40" y1="32" x2="32" y2="50"/>${armL}
-          <g><line x1="32" y1="50" x2="28" y2="66"/>${forearmL}</g>
-        </g>
-        <g><line x1="60" y1="32" x2="68" y2="50"/>${armR}
-          <g><line x1="68" y1="50" x2="72" y2="66"/>${forearmR}</g>
-        </g>
-      </g>
-    </g>
-  </svg>`;
-}
 // dica genérica por padrão de movimento — usada quando o exercício não tem uma dica própria
 // (ex.: itens do arquivo do Notion, que só têm grupo muscular + nível, sem técnica descrita)
 const PT_PATTERN_TIPS = {
@@ -790,12 +849,17 @@ function movementPattern(name){
   if(/rotation|twist|open book|thoracic/.test(n)) return 'rotation';
   return 'stretch-hold';
 }
-// bloco completo: figura animada + dica — substitui os antigos links para vídeos do YouTube
-function ptDemo(pattern, cue){
+// bloco completo: vídeo real embutido (sem sair da app) + dica — nunca abre o YouTube numa nova aba
+function ptDemo(name, cue, pattern){
+  pattern = pattern || movementPattern(name);
   const isGenericArchiveCue = cue && cue.indexOf('Do arquivo de exercícios do Notion')===0;
   const tip = (cue && !isGenericArchiveCue) ? cue : (PT_PATTERN_TIPS[pattern] || cue || PT_PATTERN_TIPS['stretch-hold']);
+  const v = EXERCISE_VIDEOS[name];
+  const video = v
+    ? `<div class="pt-video"><iframe src="https://www.youtube-nocookie.com/embed/${v.id}?rel=0&modestbranding=1" title="${escAttr(v.title||name)}" loading="lazy" allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>`
+    : `<div class="pt-novideo">🎥 Vídeo ainda não disponível para este exercício</div>`;
   return `<div class="pt-demo">
-    <div class="pt-stage">${ptFigureSVG(pattern)}</div>
+    ${video}
     <div class="pt-tip"><span class="pt-tip-ico">💡</span><span class="pt-tip-tx">${tip}</span></div>
   </div>`;
 }
@@ -1666,7 +1730,7 @@ function exerciseCard(ex, idx, type, planKey){
       <div class="ex-toggle">+</div>
     </div>
     <div class="ex-detail"><div class="ex-detail-in">
-      ${ptDemo(movementPattern(ex.n), ex.cue)}
+      ${ptDemo(ex.n, ex.cue)}
       ${ isWeight && planKey ? `<button class="swap-btn" onclick="event.stopPropagation();openSwapPicker('${planKey}',${idx})">🔁 Trocar exercício</button>` : '' }
       ${ isWeight ? setsBlock(ex) : timedBlock(ex, type) }
     </div></div>
@@ -1694,7 +1758,7 @@ function supportCard(s){
       <div class="ex-toggle">+</div>
     </div>
     <div class="ex-detail"><div class="ex-detail-in">
-      ${ptDemo(s.pat || movementPattern(s.n), s.cue)}
+      ${ptDemo(s.n, s.cue, s.pat)}
       <div class="quick-rest">
         <span class="qr-label">Descanso rápido:</span>
         <button onclick="startRest(30, '${esc(s.n)}')">30s</button>
@@ -1998,7 +2062,7 @@ function libraryCard(e){
       <div class="ex-toggle">+</div>
     </div>
     <div class="ex-detail"><div class="ex-detail-in">
-      ${ptDemo(movementPattern(e.n), e.cue)}
+      ${ptDemo(e.n, e.cue)}
     </div></div>
   </div>`;
 }
@@ -2311,7 +2375,7 @@ function stretchItemCard(it, done){
       <div class="ex-toggle">+</div>
     </div>
     <div class="ex-detail"><div class="ex-detail-in">
-      ${ptDemo(it.pat || 'stretch-hold', it.cue)}
+      ${ptDemo(it.n, it.cue, it.pat || 'stretch-hold')}
     </div></div>
   </div>`;
 }
