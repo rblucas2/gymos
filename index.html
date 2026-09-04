@@ -133,12 +133,16 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;color:inhe
 /* ---------- Exercise detail (expand) ---------- */
 .ex-detail{max-height:0;overflow:hidden;transition:max-height .3s ease;background:var(--surface)}
 .ex-detail-in{padding:4px 12px 13px}
-.cue{font-size:12.5px;color:var(--text-dim);line-height:1.5;background:var(--bg);border-radius:9px;padding:10px 12px;margin-bottom:11px}
-.cue b{color:var(--text);font-weight:650}
-.vidlink{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--accent);font-weight:600;margin-bottom:11px}
-.vidlink-in{display:flex;gap:7px;margin-bottom:12px}
-.vidlink-in input{flex:1;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;color:var(--text);font-size:12px;font-family:inherit}
-.vidlink-in button{background:var(--accent-soft);color:var(--accent);font-weight:700;font-size:12px;padding:0 13px;border-radius:8px}
+
+/* ---------- Figura PT (demonstração animada, substitui vídeos externos) ---------- */
+.pt-demo{margin-bottom:11px}
+.pt-stage{background:var(--bg);border-radius:11px;padding:10px 0 6px;display:flex;justify-content:center;align-items:center}
+.pt-fig{color:var(--accent);overflow:visible}
+.pt-fig line{stroke:currentColor;stroke-width:5;stroke-linecap:round}
+.pt-fig .pt-head{fill:currentColor}
+.pt-tip{display:flex;gap:9px;align-items:flex-start;background:var(--bg);border-radius:9px;padding:10px 12px;margin-top:8px}
+.pt-tip-ico{flex-shrink:0;line-height:1.4}
+.pt-tip-tx{font-size:12.5px;color:var(--text-dim);line-height:1.5}
 
 /* last load + rest recommendation */
 .last-load{display:flex;align-items:center;gap:9px;background:var(--bg);border-radius:9px;padding:9px 12px;margin-bottom:8px;flex-wrap:wrap}
@@ -289,11 +293,6 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;color:inhe
 .hdel{width:34px;height:34px;border-radius:9px;background:var(--surface-2);border:1px solid var(--line);display:grid;place-items:center;font-size:14px;flex-shrink:0;margin-left:2px;opacity:.7;transition:all .15s}
 .hdel:active{background:#3a1f1f;border-color:#6b2b2b;opacity:1}
 
-/* demo video link */
-.vidlink.demo{display:flex;align-items:center;gap:8px;background:var(--surface-2);border:1px solid var(--line);border-radius:9px;padding:9px 12px;margin-bottom:8px;font-size:13px;color:var(--text);font-weight:600;transition:border-color .15s}
-.vidlink.demo:active{border-color:var(--accent)}
-.vidlink.demo .play{width:24px;height:24px;border-radius:50%;background:var(--accent);color:#06120e;display:grid;place-items:center;font-size:11px;flex-shrink:0}
-
 /* last load indicator */
 .last-load{display:flex;align-items:center;gap:9px;background:var(--bg);border-radius:9px;padding:9px 12px;margin-bottom:8px;flex-wrap:wrap}
 .last-load .ll-tag{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--accent);background:var(--accent-soft);padding:3px 7px;border-radius:5px;flex-shrink:0}
@@ -331,9 +330,10 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;color:inhe
 .sh-progtxt{font-size:12px;font-weight:700;color:var(--stretch);flex-shrink:0;font-variant-numeric:tabular-nums}
 .sh-alldone{font-size:12.5px;color:var(--stretch);font-weight:650;margin-top:10px;display:flex;align-items:center;gap:6px}
 
-.stretch-item{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-sm);padding:13px 14px;margin-bottom:9px;display:flex;align-items:flex-start;gap:12px;transition:border-color .15s,background .15s;box-shadow:var(--shadow-card)}
+.stretch-item{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-sm);margin-bottom:9px;overflow:hidden;transition:border-color .15s,background .15s;box-shadow:var(--shadow-card)}
 .stretch-item.done{border-color:var(--stretch);background:rgba(125,211,192,.06)}
-.stretch-item .st-chk{width:26px;height:26px;border-radius:50%;border:1.5px solid var(--line);background:var(--surface-2);display:grid;place-items:center;font-size:12px;color:transparent;flex-shrink:0;margin-top:1px;transition:all .15s}
+.stretch-item .st-head{display:flex;align-items:flex-start;gap:12px;padding:13px 14px;cursor:pointer}
+.stretch-item .st-chk{width:26px;height:26px;border-radius:50%;border:1.5px solid var(--line);background:var(--surface-2);display:grid;place-items:center;font-size:12px;color:transparent;flex-shrink:0;margin-top:1px;transition:all .15s;cursor:pointer}
 .stretch-item.done .st-chk{background:var(--stretch);border-color:var(--stretch);color:#06120e}
 .stretch-item .st-body{flex:1;min-width:0}
 .stretch-item .st-nm{font-size:14.5px;font-weight:650;letter-spacing:-.2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
@@ -570,61 +570,61 @@ const STRENGTH = {
 const SUPPORT = {
   push:{
     warmup:[
-      {n:'Arm circles + cross-body swings', t:'30 seg cada', cue:'Círculos de braço progressivamente maiores, depois balanços cruzados à frente do peito.'},
-      {n:'T-spine open books', t:'8 por lado', cue:'Deitado de lado, joelhos dobrados, abre o braço de cima para o lado oposto seguindo com o olhar.'},
-      {n:'Mobilização torácica (foam roller)', t:'2 × 8', cue:'Foam roller na coluna dorsal, mãos atrás da cabeça, extensão sobre o rolo.'},
-      {n:'Banded Pull-Apart', t:'2 × 15', cue:'Banda à frente, braços estendidos, abre puxando as omoplatas para dentro.'},
-      {n:'Scapular Push-Ups', t:'2 × 12', cue:'Em prancha, braços fixos. Afasta e aproxima as omoplatas sem dobrar cotovelos.'},
+      {n:'Arm circles + cross-body swings', t:'30 seg cada', pat:'lateral-raise', cue:'Círculos de braço progressivamente maiores, depois balanços cruzados à frente do peito.'},
+      {n:'T-spine open books', t:'8 por lado', pat:'rotation', cue:'Deitado de lado, joelhos dobrados, abre o braço de cima para o lado oposto seguindo com o olhar.'},
+      {n:'Mobilização torácica (foam roller)', t:'2 × 8', pat:'rotation', cue:'Foam roller na coluna dorsal, mãos atrás da cabeça, extensão sobre o rolo.'},
+      {n:'Banded Pull-Apart', t:'2 × 15', pat:'pull', cue:'Banda à frente, braços estendidos, abre puxando as omoplatas para dentro.'},
+      {n:'Scapular Push-Ups', t:'2 × 12', pat:'press', cue:'Em prancha, braços fixos. Afasta e aproxima as omoplatas sem dobrar cotovelos.'},
     ],
     corrective:[
-      {n:'Full Can', t:'3 × 10/lado', cue:'Braço estendido sobe em diagonal a 45°, polegar ao tecto, omoplata para dentro. Segura 3-5 seg. Começa sem peso.'},
-      {n:'Side-Lying External Rotation', t:'3 × 12/lado', cue:'Deitado de lado, toalha entre braço e tronco, cotovelo a 90°. Roda o antebraço para cima sem mover a omoplata.'},
-      {n:'Plank (anti-extensão)', t:'3 × 30-45 seg', cue:'Glúteos e core contraídos, pélvis neutra. Não deixes a lombar arquear.'},
+      {n:'Full Can', t:'3 × 10/lado', pat:'lateral-raise', cue:'Braço estendido sobe em diagonal a 45°, polegar ao tecto, omoplata para dentro. Segura 3-5 seg. Começa sem peso.'},
+      {n:'Side-Lying External Rotation', t:'3 × 12/lado', pat:'rotation', cue:'Deitado de lado, toalha entre braço e tronco, cotovelo a 90°. Roda o antebraço para cima sem mover a omoplata.'},
+      {n:'Plank (anti-extensão)', t:'3 × 30-45 seg', pat:'plank-hold', cue:'Glúteos e core contraídos, pélvis neutra. Não deixes a lombar arquear.'},
     ],
     stretch:[
-      {n:'Alongamento de peitoral (porta)', t:'30 seg/lado', cue:'Antebraço no batente da porta, roda o tronco para fora.'},
-      {n:'Couch stretch (flexor da anca)', t:'30-45 seg/lado', cue:'⭐ Prioridade p/ APT. Joelho no chão, pé de trás na parede, contrai glúteo e empurra a anca à frente.'},
+      {n:'Alongamento de peitoral (porta)', t:'30 seg/lado', pat:'stretch-hold', cue:'Antebraço no batente da porta, roda o tronco para fora.'},
+      {n:'Couch stretch (flexor da anca)', t:'30-45 seg/lado', pat:'stretch-hold', cue:'⭐ Prioridade p/ APT. Joelho no chão, pé de trás na parede, contrai glúteo e empurra a anca à frente.'},
     ],
   },
   pull:{
     warmup:[
-      {n:'Arm swings (horiz + vert)', t:'30 seg cada', cue:'Balanços amplos de braço para acordar ombros e costas.'},
-      {n:'Standing thoracic rotations', t:'10 por lado', cue:'Pés à largura dos ombros, roda o tronco de lado a lado com braços soltos.'},
-      {n:'Cat-Camel', t:'2 × 10', cue:'Quadrupedia, alterna arco e cifose máximos de forma fluida.'},
-      {n:'Banded External Rotation', t:'2 × 15/lado', cue:'Cotovelo colado ao tronco a 90°, roda o antebraço para fora contra a banda.'},
-      {n:'Scapular Wall Slides', t:'2 × 10', cue:'Costas na parede, braços em "W", desliza para "Y" mantendo contacto.'},
+      {n:'Arm swings (horiz + vert)', t:'30 seg cada', pat:'lateral-raise', cue:'Balanços amplos de braço para acordar ombros e costas.'},
+      {n:'Standing thoracic rotations', t:'10 por lado', pat:'rotation', cue:'Pés à largura dos ombros, roda o tronco de lado a lado com braços soltos.'},
+      {n:'Cat-Camel', t:'2 × 10', pat:'hinge', cue:'Quadrupedia, alterna arco e cifose máximos de forma fluida.'},
+      {n:'Banded External Rotation', t:'2 × 15/lado', pat:'rotation', cue:'Cotovelo colado ao tronco a 90°, roda o antebraço para fora contra a banda.'},
+      {n:'Scapular Wall Slides', t:'2 × 10', pat:'pull', cue:'Costas na parede, braços em "W", desliza para "Y" mantendo contacto.'},
     ],
     corrective:[
-      {n:'Hanging Scapular Retractions', t:'3 × 8-10', cue:'Pendurado na barra, puxa as omoplatas para baixo e para dentro sem dobrar cotovelos.'},
-      {n:'Pallof Press (anti-rotação)', t:'3 × 10/lado', cue:'Banda lateral à altura do peito, empurra os braços à frente resistindo à rotação. Essencial p/ futebol.'},
-      {n:'Bird-Dog', t:'3 × 8/lado', cue:'Quadrupedia, estende braço e perna oposta mantendo pélvis estável. Não rodes a lombar.'},
+      {n:'Hanging Scapular Retractions', t:'3 × 8-10', pat:'pull', cue:'Pendurado na barra, puxa as omoplatas para baixo e para dentro sem dobrar cotovelos.'},
+      {n:'Pallof Press (anti-rotação)', t:'3 × 10/lado', pat:'plank-hold', cue:'Banda lateral à altura do peito, empurra os braços à frente resistindo à rotação. Essencial p/ futebol.'},
+      {n:'Bird-Dog', t:'3 × 8/lado', pat:'plank-hold', cue:'Quadrupedia, estende braço e perna oposta mantendo pélvis estável. Não rodes a lombar.'},
     ],
     stretch:[
-      {n:'Figure-4 (glúteo/piriforme)', t:'30 seg/lado', cue:'Deitado, tornozelo sobre o joelho oposto, puxa a coxa de trás ao peito.'},
-      {n:'Alongamento de dorsais', t:'30 seg/lado', cue:'Agarra um apoio fixo, deixa cair a anca para trás alongando as costas laterais.'},
+      {n:'Figure-4 (glúteo/piriforme)', t:'30 seg/lado', pat:'stretch-hold', cue:'Deitado, tornozelo sobre o joelho oposto, puxa a coxa de trás ao peito.'},
+      {n:'Alongamento de dorsais', t:'30 seg/lado', pat:'stretch-hold', cue:'Agarra um apoio fixo, deixa cair a anca para trás alongando as costas laterais.'},
     ],
   },
   legs:{
     warmup:[
-      {n:'Leg swings (frente-trás + lateral)', t:'10 cada/perna', cue:'Segura num apoio, balança a perna em todas as direções. Abre as ancas.'},
-      {n:'Walking lunges c/ rotação', t:'8 por lado', cue:'Avança em lunge e roda o tronco para o lado da perna da frente.'},
-      {n:'World\'s greatest stretch', t:'5 por lado', cue:'Lunge profundo, cotovelo ao chão por dentro do pé, depois roda o braço ao tecto.'},
-      {n:'Banded Ankle Mobilization', t:'2 × 10/pé', cue:'Banda ao nível do tálus (baixo). Joelho à frente sobre o pé enquanto a banda puxa o tálus para trás.'},
-      {n:'90/90 Hip Switch', t:'2 × 8/lado', cue:'Sentado em 90/90, roda ambos os joelhos de lado a lado com tronco direito.'},
-      {n:'Clamshell c/ banda', t:'2 × 15/lado', cue:'Deitado de lado, joelhos a 90°, banda acima dos joelhos. Abre o joelho de cima sem rodar a pélvis.'},
+      {n:'Leg swings (frente-trás + lateral)', t:'10 cada/perna', pat:'squat', cue:'Segura num apoio, balança a perna em todas as direções. Abre as ancas.'},
+      {n:'Walking lunges c/ rotação', t:'8 por lado', pat:'squat', cue:'Avança em lunge e roda o tronco para o lado da perna da frente.'},
+      {n:'World\'s greatest stretch', t:'5 por lado', pat:'hinge', cue:'Lunge profundo, cotovelo ao chão por dentro do pé, depois roda o braço ao tecto.'},
+      {n:'Banded Ankle Mobilization', t:'2 × 10/pé', pat:'calf-raise', cue:'Banda ao nível do tálus (baixo). Joelho à frente sobre o pé enquanto a banda puxa o tálus para trás.'},
+      {n:'90/90 Hip Switch', t:'2 × 8/lado', pat:'rotation', cue:'Sentado em 90/90, roda ambos os joelhos de lado a lado com tronco direito.'},
+      {n:'Clamshell c/ banda', t:'2 × 15/lado', pat:'rotation', cue:'Deitado de lado, joelhos a 90°, banda acima dos joelhos. Abre o joelho de cima sem rodar a pélvis.'},
     ],
     corrective:[
-      {n:'Short Foot / Foot Arch', t:'3 × 10 seg/pé', cue:'"Encurta" o pé puxando a base dos dedos ao calcanhar sem dobrar os dedos. Cria a cúpula do arco.'},
-      {n:'Single-Leg Balance', t:'3 × 30 seg/pé', cue:'Equilíbrio num pé, progride p/ olhos fechados. Forte evidência p/ prevenir entorses no futebol.'},
-      {n:'Glute Bridge c/ banda', t:'3 × 12', cue:'Banda acima dos joelhos. Sobe a anca apertando glúteos, joelhos a empurrar para fora.'},
-      {n:'Side-Lying Hip Internal Rotation', t:'3 × 12/lado', cue:'Deitado de lado, joelhos juntos. Roda o pé de cima para cima ativando rotadores internos.'},
-      {n:'Copenhagen Plank (joelhos)', t:'3 × 15-20 seg/lado', cue:'Apoio lateral, perna de cima sobre banco. Começa na versão de joelhos. Protege a virilha.'},
+      {n:'Short Foot / Foot Arch', t:'3 × 10 seg/pé', pat:'calf-raise', cue:'"Encurta" o pé puxando a base dos dedos ao calcanhar sem dobrar os dedos. Cria a cúpula do arco.'},
+      {n:'Single-Leg Balance', t:'3 × 30 seg/pé', pat:'plank-hold', cue:'Equilíbrio num pé, progride p/ olhos fechados. Forte evidência p/ prevenir entorses no futebol.'},
+      {n:'Glute Bridge c/ banda', t:'3 × 12', pat:'hinge', cue:'Banda acima dos joelhos. Sobe a anca apertando glúteos, joelhos a empurrar para fora.'},
+      {n:'Side-Lying Hip Internal Rotation', t:'3 × 12/lado', pat:'rotation', cue:'Deitado de lado, joelhos juntos. Roda o pé de cima para cima ativando rotadores internos.'},
+      {n:'Copenhagen Plank (joelhos)', t:'3 × 15-20 seg/lado', pat:'plank-hold', cue:'Apoio lateral, perna de cima sobre banco. Começa na versão de joelhos. Protege a virilha.'},
     ],
     stretch:[
-      {n:'Couch stretch (flexor anca)', t:'30-45 seg/lado', cue:'⭐ Prioridade p/ APT. Joelho no chão, pé de trás na parede, contrai glúteo e empurra a anca à frente.'},
-      {n:'Isquiotibiais (deitado c/ banda)', t:'30 seg/lado', cue:'Deitado, perna ao ar, banda no pé, puxa suave até sentir tensão atrás da coxa.'},
-      {n:'Quadríceps', t:'30 seg/lado', cue:'Segura o pé atrás, joelhos juntos, anca em ligeira posteriorização.'},
-      {n:'Gémeos + sóleo (parede)', t:'30 seg cada/perna', cue:'Mãos na parede, perna atrás esticada (gémeo) e depois joelho dobrado (sóleo).'},
+      {n:'Couch stretch (flexor anca)', t:'30-45 seg/lado', pat:'stretch-hold', cue:'⭐ Prioridade p/ APT. Joelho no chão, pé de trás na parede, contrai glúteo e empurra a anca à frente.'},
+      {n:'Isquiotibiais (deitado c/ banda)', t:'30 seg/lado', pat:'stretch-hold', cue:'Deitado, perna ao ar, banda no pé, puxa suave até sentir tensão atrás da coxa.'},
+      {n:'Quadríceps', t:'30 seg/lado', pat:'stretch-hold', cue:'Segura o pé atrás, joelhos juntos, anca em ligeira posteriorização.'},
+      {n:'Gémeos + sóleo (parede)', t:'30 seg cada/perna', pat:'stretch-hold', cue:'Mãos na parede, perna atrás esticada (gémeo) e depois joelho dobrado (sóleo).'},
     ],
   },
 };
@@ -654,18 +654,18 @@ const PLYO = {
 // PLANO DIÁRIO DE ALONGAMENTOS — rotação semanal, foco muda por dia
 // couch stretch aparece quase todos os dias (prioridade p/ APT)
 const STRETCH_POOL = {
-  chest:     {n:'Alongamento de peitoral (porta)', t:'30 seg/lado', cue:'Antebraço no batente da porta, roda o tronco para fora até sentir o peitoral esticar.'},
-  couch:     {n:'Couch stretch (flexor da anca)', t:'30-45 seg/lado', star:1, cue:'Prioridade p/ APT. Joelho no chão, pé de trás na parede, contrai o glúteo e empurra a anca à frente.'},
-  shoulder:  {n:'Alongamento cruzado de ombro', t:'20 seg/lado', cue:'Braço esticado à frente do peito, a outra mão empurra-o suavemente contra o tronco.'},
-  tricep:    {n:'Tríceps sobre a cabeça', t:'20 seg/lado', cue:'Cotovelo apontado ao teto atrás da cabeça, puxa suavemente com a outra mão.'},
-  lats:      {n:'Alongamento de dorsais', t:'30 seg/lado', cue:'Agarra um apoio fixo, deixa cair a anca para trás alongando as costas laterais.'},
-  figure4:   {n:'Figure-4 (glúteo/piriforme)', t:'30 seg/lado', cue:'Deitado, tornozelo sobre o joelho oposto, puxa a coxa de trás ao peito.'},
-  neck:      {n:'Alongamento de trapézio/pescoço', t:'20 seg/lado', cue:'Inclina a cabeça para o lado com a mão a puxar suavemente. Ombro oposto relaxado.'},
-  thoracic:  {n:'Rotação torácica (livro aberto)', t:'8 por lado', cue:'Deitado de lado, joelhos dobrados, abre o braço de cima seguindo com o olhar.'},
-  hams:      {n:'Isquiotibiais (deitado c/ banda)', t:'30 seg/lado', cue:'Deitado, perna ao ar, banda no pé, puxa suave até sentir tensão atrás da coxa.'},
-  quad:      {n:'Quadríceps', t:'30 seg/lado', cue:'Segura o pé atrás, joelhos juntos, anca em ligeira posteriorização.'},
-  calf:      {n:'Gémeos + sóleo (parede)', t:'30 seg cada/perna', cue:'Mãos na parede, perna atrás esticada (gémeo) e depois joelho dobrado (sóleo).'},
-  groin:     {n:'Borboleta (adutores)', t:'30 seg', cue:'Sentado, plantas dos pés juntas, joelhos caem para os lados, inclina o tronco levemente à frente.'},
+  chest:     {n:'Alongamento de peitoral (porta)', t:'30 seg/lado', pat:'stretch-hold', cue:'Antebraço no batente da porta, roda o tronco para fora até sentir o peitoral esticar.'},
+  couch:     {n:'Couch stretch (flexor da anca)', t:'30-45 seg/lado', star:1, pat:'stretch-hold', cue:'Prioridade p/ APT. Joelho no chão, pé de trás na parede, contrai o glúteo e empurra a anca à frente.'},
+  shoulder:  {n:'Alongamento cruzado de ombro', t:'20 seg/lado', pat:'stretch-hold', cue:'Braço esticado à frente do peito, a outra mão empurra-o suavemente contra o tronco.'},
+  tricep:    {n:'Tríceps sobre a cabeça', t:'20 seg/lado', pat:'stretch-hold', cue:'Cotovelo apontado ao teto atrás da cabeça, puxa suavemente com a outra mão.'},
+  lats:      {n:'Alongamento de dorsais', t:'30 seg/lado', pat:'stretch-hold', cue:'Agarra um apoio fixo, deixa cair a anca para trás alongando as costas laterais.'},
+  figure4:   {n:'Figure-4 (glúteo/piriforme)', t:'30 seg/lado', pat:'stretch-hold', cue:'Deitado, tornozelo sobre o joelho oposto, puxa a coxa de trás ao peito.'},
+  neck:      {n:'Alongamento de trapézio/pescoço', t:'20 seg/lado', pat:'stretch-hold', cue:'Inclina a cabeça para o lado com a mão a puxar suavemente. Ombro oposto relaxado.'},
+  thoracic:  {n:'Rotação torácica (livro aberto)', t:'8 por lado', pat:'rotation', cue:'Deitado de lado, joelhos dobrados, abre o braço de cima seguindo com o olhar.'},
+  hams:      {n:'Isquiotibiais (deitado c/ banda)', t:'30 seg/lado', pat:'stretch-hold', cue:'Deitado, perna ao ar, banda no pé, puxa suave até sentir tensão atrás da coxa.'},
+  quad:      {n:'Quadríceps', t:'30 seg/lado', pat:'stretch-hold', cue:'Segura o pé atrás, joelhos juntos, anca em ligeira posteriorização.'},
+  calf:      {n:'Gémeos + sóleo (parede)', t:'30 seg cada/perna', pat:'stretch-hold', cue:'Mãos na parede, perna atrás esticada (gémeo) e depois joelho dobrado (sóleo).'},
+  groin:     {n:'Borboleta (adutores)', t:'30 seg', pat:'stretch-hold', cue:'Sentado, plantas dos pés juntas, joelhos caem para os lados, inclina o tronco levemente à frente.'},
 };
 const STRETCH_PLAN = {
   1:{ title:'Peito & Ombros', icon:'🫁', color:'var(--push)', items:['chest','shoulder','tricep','thoracic','couch'] },
@@ -676,6 +676,129 @@ const STRETCH_PLAN = {
   6:{ title:'Mobilidade geral', icon:'🌀', color:'var(--stretch)', items:['thoracic','neck','lats','groin','couch'] },
   0:{ title:'Recuperação leve', icon:'🌿', color:'var(--stretch)', items:['couch','hams','calf','neck'] },
 };
+
+/* ============================================================
+   FIGURA PT — demonstração visual animada de como fazer o exercício,
+   como se tivesses um treinador ao lado a mostrar o movimento. É um
+   boneco articulado desenhado em SVG (sem vídeo, sem ligação a fora
+   da app) que se move em loop consoante o "padrão de movimento" do
+   exercício, mais uma dica de execução por baixo.
+   ============================================================ */
+// pivôs de cada junta no espaço do SVG (viewBox 100x130)
+const PT_PIVOTS = { torso:[50,72], armL:[40,32], armR:[60,32], forearmL:[32,50], forearmR:[68,50], thighL:[44,72], thighR:[56,72], shinL:[42,98], shinR:[58,98] };
+function ptRotAnim(jointName, deg, dur){
+  const p = PT_PIVOTS[jointName]; if(!p) return '';
+  const [cx,cy] = p;
+  return `<animateTransform attributeName="transform" type="rotate" values="0 ${cx} ${cy};${deg} ${cx} ${cy};0 ${cx} ${cy}" keyTimes="0;0.5;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1" dur="${dur}s" repeatCount="indefinite"/>`;
+}
+function ptRootAnim(root, dur){
+  if(!root) return '';
+  if(root.type==='translate'){
+    const [tx,ty] = root.to;
+    return `<animateTransform attributeName="transform" type="translate" values="0,0;${tx},${ty};0,0" keyTimes="0;0.5;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1" dur="${dur}s" repeatCount="indefinite"/>`;
+  }
+  const [cx,cy] = root.pivot, d = root.to;
+  return `<animateTransform attributeName="transform" type="rotate" values="0 ${cx} ${cy};${d} ${cx} ${cy};0 ${cx} ${cy};${-d} ${cx} ${cy};0 ${cx} ${cy}" keyTimes="0;0.25;0.5;0.75;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1" dur="${dur}s" repeatCount="indefinite"/>`;
+}
+// cada padrão descreve, por junta bilateral (mesma amplitude, sinais opostos automaticamente
+// nos dois lados p/ ficar simétrico), ou por junta única (torsoOnly), ou por movimento de
+// corpo inteiro (root: roda ou translada a figura toda) — tudo em graus/px, ida-e-volta.
+const PT_PATTERNS = {
+  squat:          { thigh:34, shin:-52, torsoOnly:8, dur:1.8 },
+  hinge:          { torsoOnly:36, dur:1.8 },
+  press:          { arm:-58, forearm:68, dur:1.5 },
+  pull:           { arm:40, forearm:-52, dur:1.5 },
+  'lateral-raise':{ arm:88, dur:1.5 },
+  curl:           { forearm:-112, dur:1.3 },
+  'triceps-ext':  { arm:-95, forearm:70, dur:1.4 },
+  jump:           { thigh:38, shin:-58, torsoOnly:8, dur:1.0 },
+  sprint:         { thigh:40, shin:-36, arm:-40, dur:0.8 },
+  'calf-raise':   { root:{type:'translate', to:[0,-6]}, dur:1.3 },
+  'lateral-jump': { root:{type:'translate', to:[12,0]}, dur:1.0 },
+  'plank-hold':   { root:{type:'rotate', pivot:[50,105], to:2.5}, dur:2.6 },
+  rotation:       { root:{type:'rotate', pivot:[50,72], to:15}, dur:2.2 },
+  'stretch-hold': { root:{type:'rotate', pivot:[50,105], to:2}, dur:3.2 },
+};
+function ptFigureSVG(pattern){
+  const p = PT_PATTERNS[pattern] || PT_PATTERNS['stretch-hold'];
+  const dur = p.dur || 2;
+  const armL = p.arm!=null ? ptRotAnim('armL', p.arm, dur) : '';
+  const armR = p.arm!=null ? ptRotAnim('armR', -p.arm, dur) : '';
+  const forearmL = p.forearm!=null ? ptRotAnim('forearmL', p.forearm, dur) : '';
+  const forearmR = p.forearm!=null ? ptRotAnim('forearmR', -p.forearm, dur) : '';
+  const thighL = p.thigh!=null ? ptRotAnim('thighL', p.thigh, dur) : '';
+  const thighR = p.thigh!=null ? ptRotAnim('thighR', -p.thigh, dur) : '';
+  const shinL = p.shin!=null ? ptRotAnim('shinL', p.shin, dur) : '';
+  const shinR = p.shin!=null ? ptRotAnim('shinR', -p.shin, dur) : '';
+  const torso = p.torsoOnly!=null ? ptRotAnim('torso', p.torsoOnly, dur) : '';
+  const root = ptRootAnim(p.root, dur);
+  return `<svg class="pt-fig" viewBox="0 0 100 130" width="84" height="109" aria-hidden="true">
+    <g>${root}
+      <g><line x1="44" y1="72" x2="42" y2="98"/>${thighL}
+        <g><line x1="42" y1="98" x2="40" y2="122"/>${shinL}</g>
+      </g>
+      <g><line x1="56" y1="72" x2="58" y2="98"/>${thighR}
+        <g><line x1="58" y1="98" x2="60" y2="122"/>${shinR}</g>
+      </g>
+      <g><line x1="50" y1="72" x2="50" y2="30"/>${torso}
+        <circle class="pt-head" cx="50" cy="16" r="9"/>
+        <g><line x1="40" y1="32" x2="32" y2="50"/>${armL}
+          <g><line x1="32" y1="50" x2="28" y2="66"/>${forearmL}</g>
+        </g>
+        <g><line x1="60" y1="32" x2="68" y2="50"/>${armR}
+          <g><line x1="68" y1="50" x2="72" y2="66"/>${forearmR}</g>
+        </g>
+      </g>
+    </g>
+  </svg>`;
+}
+// dica genérica por padrão de movimento — usada quando o exercício não tem uma dica própria
+// (ex.: itens do arquivo do Notion, que só têm grupo muscular + nível, sem técnica descrita)
+const PT_PATTERN_TIPS = {
+  squat: 'Desce com o peito alto e os joelhos a seguir a direção dos dedos dos pés. Ritmo controlado, sem pressa.',
+  hinge: 'A anca vai para trás primeiro, a coluna fica neutra do início ao fim. Sente o alongamento atrás da perna.',
+  press: 'Omoplatas fixas e para trás antes de empurrar. Expira no esforço, controla sempre a descida.',
+  pull: 'Puxa liderando com os cotovelos, não com as mãos. Aperta as omoplatas no fim do movimento.',
+  'lateral-raise': 'Sobe até à altura dos ombros, cotovelos com uma ligeira flexão fixa. Sem balançar o tronco.',
+  curl: 'Cotovelos fixos ao lado do corpo do início ao fim. Contrai no topo, controla sempre a descida.',
+  'triceps-ext': 'Só o antebraço se move — o cotovelo fica fixo no sítio. Estende por completo sem travar bruscamente.',
+  'calf-raise': 'Sobe o máximo possível na ponta dos pés, pausa, desce devagar para sentir o alongamento.',
+  'plank-hold': 'Core e glúteos contraídos, corpo em linha reta. Respira normalmente sem prender a pélvis.',
+  rotation: 'Movimento controlado a partir do tronco, não dos braços. Mantém a anca estável.',
+  jump: 'Aterra sempre suave, absorvendo com os joelhos alinhados. Qualidade da aterragem conta mais que a altura.',
+  'lateral-jump': 'Aterra e estabiliza antes do próximo salto. Controlo do joelho é mais importante que a velocidade.',
+  sprint: 'Aceleração progressiva, braços a acompanhar o ritmo das pernas. Recupera por completo entre repetições.',
+  'stretch-hold': 'Mantém a posição sem forçar — deves sentir tensão suave, nunca dor. Respira devagar.',
+};
+// classifica um exercício (pelo nome, em inglês — usado nos exercícios de ginásio/pliometria/
+// arquivo Notion) no padrão de movimento mais próximo. Os itens de aquecimento/corretivo/
+// alongamento (nomes em português) já vêm com "pat" atribuído à mão nos seus próprios dados.
+function movementPattern(name){
+  const n = (name||'').toLowerCase();
+  if(/sprint|agility|5-10-5|reactive cut/.test(n)) return 'sprint';
+  if(/lateral bound|skater|hurdle/.test(n)) return 'lateral-jump';
+  if(/\bjump\b|pogo|broad jump/.test(n)) return 'jump';
+  if(/squat|lunge|step.?up/.test(n)) return 'squat';
+  if(/deadlift|romanian|\brdl\b|hip thrust|good morning/.test(n)) return 'hinge';
+  if(/calf/.test(n)) return 'calf-raise';
+  if(/curl|21s/.test(n)) return 'curl';
+  if(/pushdown|kickback|overhead.*tricep|tricep.*(overhead|extension)|skullcrusher|french press/.test(n)) return 'triceps-ext';
+  if(/lateral raise|y-raise|front raise|\braise\b/.test(n)) return 'lateral-raise';
+  if(/row|pulldown|pull.?up|pull.?over|face pull|pull.?around/.test(n)) return 'pull';
+  if(/\bpress\b|push.?up|bench|\bfly\b|\bdip\b/.test(n)) return 'press';
+  if(/plank|pallof|copenhagen|short foot|balance|clamshell|glute bridge|bird.?dog/.test(n)) return 'plank-hold';
+  if(/rotation|twist|open book|thoracic/.test(n)) return 'rotation';
+  return 'stretch-hold';
+}
+// bloco completo: figura animada + dica — substitui os antigos links para vídeos do YouTube
+function ptDemo(pattern, cue){
+  const isGenericArchiveCue = cue && cue.indexOf('Do arquivo de exercícios do Notion')===0;
+  const tip = (cue && !isGenericArchiveCue) ? cue : (PT_PATTERN_TIPS[pattern] || cue || PT_PATTERN_TIPS['stretch-hold']);
+  return `<div class="pt-demo">
+    <div class="pt-stage">${ptFigureSVG(pattern)}</div>
+    <div class="pt-tip"><span class="pt-tip-ico">💡</span><span class="pt-tip-tx">${tip}</span></div>
+  </div>`;
+}
 
 // meta semanal: 3× força (PPL) + 2× pliometria, conforme o plano sugerido no Menu
 const WEEKLY_GOAL = 5;
@@ -1543,8 +1666,7 @@ function exerciseCard(ex, idx, type, planKey){
       <div class="ex-toggle">+</div>
     </div>
     <div class="ex-detail"><div class="ex-detail-in">
-      <div class="cue">${ex.cue}</div>
-      ${videoBlock(ex.id||'pl'+idx, ex.n)}
+      ${ptDemo(movementPattern(ex.n), ex.cue)}
       ${ isWeight && planKey ? `<button class="swap-btn" onclick="event.stopPropagation();openSwapPicker('${planKey}',${idx})">🔁 Trocar exercício</button>` : '' }
       ${ isWeight ? setsBlock(ex) : timedBlock(ex, type) }
     </div></div>
@@ -1565,7 +1687,6 @@ function timedBlock(ex, type){
 }
 
 function supportCard(s){
-  const vid = 'sup_'+s.n.replace(/[^a-z0-9]/gi,'').slice(0,12);
   return `<div class="ex">
     <div class="ex-head" onclick="toggleEx(this)">
       <div class="ex-thumb" style="display:grid;place-items:center;color:var(--accent);font-size:18px">●</div>
@@ -1573,8 +1694,7 @@ function supportCard(s){
       <div class="ex-toggle">+</div>
     </div>
     <div class="ex-detail"><div class="ex-detail-in">
-      <div class="cue">${s.cue}</div>
-      ${videoBlock(vid, s.n)}
+      ${ptDemo(s.pat || movementPattern(s.n), s.cue)}
       <div class="quick-rest">
         <span class="qr-label">Descanso rápido:</span>
         <button onclick="startRest(30, '${esc(s.n)}')">30s</button>
@@ -1583,21 +1703,6 @@ function supportCard(s){
       </div>
     </div></div>
   </div>`;
-}
-
-function videoBlock(id, exName){
-  const custom = STATE.videos[id];
-  // link de demonstração automático (pesquisa YouTube direcionada)
-  const q = encodeURIComponent((exName||'')+' exercise proper form');
-  const demoUrl = `https://www.youtube.com/results?search_query=${q}`;
-  let html = `<a class="vidlink demo" href="${custom||demoUrl}" target="_blank" rel="noopener">
-      <span class="play">▶</span> ${custom?'Ver vídeo guardado':'Ver demonstração'}
-    </a>`;
-  html += `<div class="vidlink-in">
-      <input id="v_${id}" value="${custom||''}" placeholder="Ou cola o teu link de vídeo">
-      <button onclick="saveVideo('${id}')">Guardar</button>
-    </div>`;
-  return html;
 }
 
 function setsBlock(ex){
@@ -1701,15 +1806,6 @@ function findEx(exid){
   const lib = EXERCISE_LIBRARY.find(e=>e.id===exid);
   if(lib) return lib;
   return {id:exid,sets:3};
-}
-
-function saveVideo(id){
-  const inp = document.getElementById('v_'+id);
-  if(!inp) return;
-  const url = inp.value.trim();
-  if(url){ STATE.videos[id]=url; toast('Vídeo guardado'); }
-  else { delete STATE.videos[id]; }
-  saveState();
 }
 
 /* ============================================================
@@ -1895,7 +1991,6 @@ function renderLibraryView(){
   $('#view-library').innerHTML = html;
 }
 function libraryCard(e){
-  const q = encodeURIComponent(e.n+' exercise proper form');
   return `<div class="ex" id="lex-${e.id}">
     <div class="ex-head" onclick="toggleEx(this)">
       <div class="ex-thumb">${pickerThumb(e)}</div>
@@ -1903,8 +1998,7 @@ function libraryCard(e){
       <div class="ex-toggle">+</div>
     </div>
     <div class="ex-detail"><div class="ex-detail-in">
-      <div class="cue">${e.cue||'Sem descrição.'}</div>
-      <a class="vidlink demo" href="https://www.youtube.com/results?search_query=${q}" target="_blank" rel="noopener"><span class="play">▶</span> Ver demonstração</a>
+      ${ptDemo(movementPattern(e.n), e.cue)}
     </div></div>
   </div>`;
 }
@@ -2207,13 +2301,18 @@ function renderStretch(){
 }
 
 function stretchItemCard(it, done){
-  return `<div class="stretch-item ${done?'done':''}" onclick="toggleStretchItem('${it.id}')">
-    <div class="st-chk">✓</div>
-    <div class="st-body">
-      <div class="st-nm">${it.n}${it.star?'<span class="star">⭐</span>':''}</div>
-      <div class="st-t">${it.t}</div>
-      <div class="st-cue">${it.cue}</div>
+  return `<div class="stretch-item ${done?'done':''}" id="st-${it.id}">
+    <div class="st-head" onclick="toggleEx(this)">
+      <div class="st-chk" onclick="event.stopPropagation();toggleStretchItem('${it.id}')">✓</div>
+      <div class="st-body">
+        <div class="st-nm">${it.n}${it.star?'<span class="star">⭐</span>':''}</div>
+        <div class="st-t">${it.t}</div>
+      </div>
+      <div class="ex-toggle">+</div>
     </div>
+    <div class="ex-detail"><div class="ex-detail-in">
+      ${ptDemo(it.pat || 'stretch-hold', it.cue)}
+    </div></div>
   </div>`;
 }
 
