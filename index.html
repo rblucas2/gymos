@@ -671,6 +671,82 @@ const WEEKLY_GOAL = 5;
    para montar planos personalizados.
    ============================================================ */
 function slug(s){ return s.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu,'').replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,''); }
+
+/* ============================================================
+   ARQUIVO DE EXERCÍCIOS (Notion — página "Ginásio", dentro de Físico)
+   Catálogo pessoal de exercícios por grupo muscular, cada um com uma
+   nota de qualidade (S > A > B > C). Regras do Notion:
+   - 9 séries por grupo muscular por semana, para maximizar hipertrofia
+   - Mínimo 2 treinos por semana
+   - Tríceps: um exercício com os braços acima da cabeça + outro com o
+     cotovelo atrás do tronco
+   ============================================================ */
+const NOTION_RULES = 'Regras do arquivo (Notion): 9 séries por grupo muscular por semana · mínimo 2 treinos por semana · tríceps precisa de 1 exercício acima da cabeça + 1 com o cotovelo atrás do tronco.';
+const NOTION_ARCHIVE = [
+  {n:'Hammer Curl', grupo:'Biceps', nota:'A'},
+  {n:'Ez Barbell Curl', grupo:'Biceps', nota:'A'},
+  {n:'Bayesian Cable Curl', grupo:'Biceps', nota:'S'},
+  {n:'Machine Preacher Curl', grupo:'Biceps', nota:'S'},
+  {n:'Preacher Hammer Curl', grupo:'Biceps', nota:'S'},
+  {n:'Barbell Curl', grupo:'Biceps', nota:'B'},
+  {n:'21s', grupo:'Biceps', nota:'A'},
+  {n:'Standing Cable Curl', grupo:'Biceps', nota:'A'},
+  {n:'Dumbbell Preacher Curl', grupo:'Biceps', nota:'S'},
+  {n:'Incline Curl', grupo:'Biceps', nota:'A'},
+  {n:'Standing Dumbbell', grupo:'Biceps', nota:'A'},
+  {n:'Cable Rows', grupo:'Costas', nota:'S'},
+  {n:'Mid Grip Cable Row', grupo:'Costas', nota:'S'},
+  {n:'Chest Suported Rows', grupo:'Costas', nota:'S'},
+  {n:'Meadows Row', grupo:'Costas', nota:'S'},
+  {n:'Cable Lat Pull Over', grupo:'Costas', nota:'A'},
+  {n:'Neutral Grip Lat Pulldowns', grupo:'Costas', nota:'S'},
+  {n:'Barbell Row', grupo:'Costas', nota:'B'},
+  {n:'Kneeling 1 Arm Lat Pulldown', grupo:'Costas', nota:'S'},
+  {n:'Wide Grip Pull Up', grupo:'Costas', nota:'A'},
+  {n:'Cross Body Lat Pull Around', grupo:'Costas', nota:'A'},
+  {n:'Wide Grip Lat Pulldowns', grupo:'Costas', nota:'S'},
+  {n:'Arnold Style Side Lying Dumbbell Raise', grupo:'Ombro', nota:'A'},
+  {n:'Seated Machine Lateral Raise', grupo:'Ombro', nota:'B'},
+  {n:'Standing Machine Lateral Raise', grupo:'Ombro', nota:'A'},
+  {n:'Machine Shoulder Press', grupo:'Ombro', nota:'A'},
+  {n:'Lateral Raise', grupo:'Ombro', nota:'B'},
+  {n:'Lean-in Lateral Raise', grupo:'Ombro', nota:'A'},
+  {n:'Cable Lateral Raise', grupo:'Ombro', nota:'S'},
+  {n:'Barbell Overhead Press', grupo:'Ombro', nota:'B'},
+  {n:'Seated Overhead Press', grupo:'Ombro', nota:'B'},
+  {n:'Dumbbell Overhead Press', grupo:'Ombro', nota:'A'},
+  {n:'Upright Rows', grupo:'Ombro', nota:'B'},
+  {n:'Cable Y-Raise', grupo:'Ombro', nota:'S'},
+  {n:'Seated Cable Peach Fly', grupo:'Peito', nota:'S'},
+  {n:'Smith Machine Incline Bench Press', grupo:'Peito', nota:'A'},
+  {n:'Push Ups', grupo:'Peito', nota:'C'},
+  {n:'Machine Chest Press', grupo:'Peito', nota:'S'},
+  {n:'Bench Press', grupo:'Peito', nota:'A'},
+  {n:'Cable Crossovers', grupo:'Peito', nota:'A'},
+  {n:'Dips', grupo:'Peito', nota:'A'},
+  {n:'Incline Bench Press', grupo:'Peito', nota:'A'},
+  {n:'Flat Dumbbell Press', grupo:'Peito', nota:'A'},
+  {n:'Pec Deck', grupo:'Peito', nota:'A'},
+  {n:'Machine Dips', grupo:'Triceps', nota:'B'},
+  {n:'Tricep Pushdown', grupo:'Triceps', nota:'A'},
+  {n:'Close Grip Dips', grupo:'Triceps', nota:'B'},
+  {n:'Skullcrusher', grupo:'Triceps', nota:'S'},
+  {n:'Overhead Tricep Extension', grupo:'Triceps', nota:'S'},
+  {n:'Cable Tricep Kickbacks', grupo:'Triceps', nota:'A'},
+  {n:'Dumbbell French Press', grupo:'Triceps', nota:'B'},
+  {n:'Diamond Push Ups', grupo:'Triceps', nota:'B'},
+];
+// grupo do Notion → grupo muscular usado nos diagramas do corpo (m) + face do corpo (front)
+const NOTION_GROUP_MAP = {
+  Peito:   {m:'chest',    front:1},
+  Ombro:   {m:'shoulders',front:1},
+  Triceps: {m:'triceps',  front:1},
+  Biceps:  {m:'biceps',   front:1},
+  Costas:  {m:'back',     front:0},
+};
+const NOTA_LABEL = {S:'nível S — excelente', A:'nível A — muito bom', B:'nível B — bom', C:'nível C — aceitável'};
+function archRest(n){ return /Press|Row|Pull Up|Dips|Deadlift|Squat/i.test(n) ? 120 : 75; }
+
 function buildLibrary(){
   const lib = [];
   const seen = new Set();
@@ -680,6 +756,17 @@ function buildLibrary(){
       lib.push({id:ex.id, n:ex.n, cat:'ginasio', catLabel:'Ginásio', m:ex.m, front:ex.front, cue:ex.cue, range:ex.range, sets:ex.sets, rest:ex.rest});
     });
   }
+  NOTION_ARCHIVE.forEach(ex=>{
+    const id = 'arch_'+slug(ex.n);
+    if(seen.has(id)) return; seen.add(id);
+    const map = NOTION_GROUP_MAP[ex.grupo] || {m:null, front:1};
+    lib.push({
+      id, n:ex.n, cat:'arquivo', catLabel:'Arquivo (Notion)',
+      m: map.m?[map.m]:null, front: map.front,
+      cue: `Do arquivo de exercícios do Notion · grupo: ${ex.grupo} · ${NOTA_LABEL[ex.nota]||ex.nota}.`,
+      range:'3 × 8-12', sets:3, rest: archRest(ex.n),
+    });
+  });
   for(const k in PLYO){
     PLYO[k].exercises.forEach((ex,i)=>{
       const id = 'plyo_'+k+'_'+slug(ex.n);
@@ -749,6 +836,46 @@ async function loadState(){
   if(!STATE.records) STATE.records = {};
   if(!STATE.customPlans) STATE.customPlans = {};
   if(!STATE.swaps) STATE.swaps = {};
+  await seedNotionPlans();
+}
+
+/* Cria, uma única vez, dois planos personalizados prontos a usar a partir do
+   arquivo de exercícios do Notion — cobre Peito+Ombro+Tríceps (Push) e
+   Costas+Bíceps (Pull), 3 exercícios por grupo muscular × 3 séries = 9
+   séries/grupo/semana (regra do Notion). O arquivo ainda não tem exercícios
+   para Quadríceps/Gémeos/Abdominais, por isso não há um plano "Legs (Notion)"
+   — assim que o Rodrigo preencher essa parte no Notion, pede-se de novo.
+   Só corre no primeiro arranque; depois disto o utilizador pode editar ou
+   apagar estes planos livremente sem que voltem a aparecer. */
+async function seedNotionPlans(){
+  if(STATE.notionPlanSeeded) return;
+  STATE.customPlans = STATE.customPlans || {};
+  const mk = (libId)=>{
+    const e = EXERCISE_LIBRARY.find(x=>x.id===libId);
+    if(!e) return null;
+    return { id:e.id, n:e.n, m:e.m, front:e.front, cue:e.cue, range:'3 × 8-12', sets:3, rest:e.rest };
+  };
+  if(!STATE.customPlans['notion_push']){
+    STATE.customPlans['notion_push'] = {
+      id:'notion_push', name:'Push (Arquivo Notion)', icon:'📓', color:'var(--push)', createdAt:Date.now(),
+      exercises:[
+        mk('arch_machine_chest_press'), mk('arch_incline_bench_press'), mk('arch_seated_cable_peach_fly'),
+        mk('arch_seated_overhead_press'), mk('arch_cable_lateral_raise'), mk('arch_cable_y_raise'),
+        mk('arch_overhead_tricep_extension'), mk('arch_cable_tricep_kickbacks'), mk('arch_skullcrusher'),
+      ].filter(Boolean),
+    };
+  }
+  if(!STATE.customPlans['notion_pull']){
+    STATE.customPlans['notion_pull'] = {
+      id:'notion_pull', name:'Pull (Arquivo Notion)', icon:'📓', color:'var(--pull)', createdAt:Date.now(),
+      exercises:[
+        mk('arch_chest_suported_rows'), mk('arch_neutral_grip_lat_pulldowns'), mk('arch_meadows_row'),
+        mk('arch_bayesian_cable_curl'), mk('arch_machine_preacher_curl'), mk('arch_incline_curl'),
+      ].filter(Boolean),
+    };
+  }
+  STATE.notionPlanSeeded = true;
+  await saveState();
 }
 async function saveState(){
   try{
@@ -1258,7 +1385,7 @@ function renderPicker(){
       <div class="lib-info"><div class="lib-nm">${e.n}</div><div class="lib-tag">${e.catLabel}</div><div class="lib-cue">${(e.cue||'').slice(0,72)}${(e.cue||'').length>72?'…':''}</div></div>
       <div class="lib-add">${PICKER.mode==='swap'?'🔁':'+'}</div>
     </div>`).join('') || '<p class="tiny" style="color:var(--text-faint);padding:24px 4px;text-align:center">Sem exercícios nesta categoria.</p>';
-  const cats = [['ginasio','Ginásio'],['pliometria','Pliometria'],['correcao','Correção']];
+  const cats = [['ginasio','Ginásio'],['arquivo','Arquivo (Notion)'],['pliometria','Pliometria'],['correcao','Correção']];
   const body = `<input class="lib-search" placeholder="Procurar exercício…" value="${(PICKER.q||'').replace(/"/g,'&quot;')}" oninput="PICKER.q=this.value;renderPicker()">
     <div class="ovl-tabs">${cats.map(([c,l])=>`<button class="ovl-tab ${PICKER.cat===c?'active':''}" onclick="PICKER.cat='${c}';renderPicker()">${l}</button>`).join('')}</div>
     <div>${rows}</div>`;
@@ -1287,13 +1414,14 @@ function openLibrary(){
 }
 function renderLibraryView(){
   const list = EXERCISE_LIBRARY.filter(e=> e.cat===LIB_FILTER.cat && (!LIB_FILTER.q || e.n.toLowerCase().includes(LIB_FILTER.q.toLowerCase())));
-  const cats = [['ginasio','🏋️ Ginásio'],['pliometria','⚡ Pliometria'],['correcao','🩹 Correção']];
+  const cats = [['ginasio','🏋️ Ginásio'],['arquivo','📓 Arquivo (Notion)'],['pliometria','⚡ Pliometria'],['correcao','🩹 Correção']];
   const rows = list.map(e=> libraryCard(e)).join('') || '<p class="tiny" style="color:var(--text-faint);padding:24px 4px;text-align:center">Sem exercícios.</p>';
   const html = `
     <button class="backlink" onclick="nav('menu')">‹ Voltar</button>
     <div class="sec-label">📚 Biblioteca de exercícios</div>
     <input class="lib-search" placeholder="Procurar exercício…" value="${(LIB_FILTER.q||'').replace(/"/g,'&quot;')}" oninput="LIB_FILTER.q=this.value;renderLibraryView()">
     <div class="ovl-tabs" style="margin-bottom:14px">${cats.map(([c,l])=>`<button class="ovl-tab ${LIB_FILTER.cat===c?'active':''}" onclick="LIB_FILTER.cat='${c}';renderLibraryView()">${l}</button>`).join('')}</div>
+    ${LIB_FILTER.cat==='arquivo' ? `<div class="intro">${NOTION_RULES}</div>` : ''}
     ${rows}
   `;
   $('#view-library').innerHTML = html;
