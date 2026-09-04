@@ -54,19 +54,25 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;color:inhe
 /* ---------- Hero (sugestão de treino) ---------- */
 .hero-card{background:linear-gradient(135deg,var(--accent-deep),#0f2b25 65%,var(--surface));border:1px solid var(--accent-deep);border-radius:var(--radius);padding:19px;margin-bottom:18px;box-shadow:0 16px 34px -18px rgba(30,169,138,.5);position:relative;overflow:hidden;width:100%;text-align:left}
 .hero-card::after{content:'';position:absolute;right:-34px;top:-34px;width:150px;height:150px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.12),transparent 70%)}
+@keyframes heroShimmer{0%{background-position:-260% 0}100%{background-position:260% 0}}
+.hero-card::before{content:'';position:absolute;inset:0;background:linear-gradient(115deg,transparent 35%,rgba(255,255,255,.09) 50%,transparent 65%);background-size:280% 100%;animation:heroShimmer 4.5s linear infinite;pointer-events:none}
 .hero-badge{font-size:10.5px;font-weight:750;text-transform:uppercase;letter-spacing:.6px;color:rgba(255,255,255,.72);margin-bottom:11px;position:relative;display:flex;align-items:center;gap:6px}
 .hero-main{display:flex;align-items:center;gap:14px;margin-bottom:15px;position:relative}
 .hero-ic{width:52px;height:52px;border-radius:14px;background:rgba(255,255,255,.14);display:grid;place-items:center;font-size:23px;font-weight:800;color:#fff;flex-shrink:0}
 .hero-t{font-size:19.5px;font-weight:800;color:#fff;letter-spacing:-.3px}
 .hero-s{font-size:12px;color:rgba(255,255,255,.72);margin-top:3px;font-weight:500}
 .hero-cta{font-size:13.5px;font-weight:750;color:#06120e;background:#fff;display:inline-flex;align-items:center;gap:6px;padding:10px 15px;border-radius:11px;position:relative}
+.hero-ring{margin-left:auto;position:relative;width:44px;height:44px;flex-shrink:0}
+.hero-ring .rg-txt{position:absolute;inset:0;display:grid;place-items:center;font-size:11px;font-weight:800;color:#fff}
 
 /* ---------- Quick stats (home) ---------- */
 .quickstats{display:flex;gap:10px;margin-bottom:16px}
 .qstat{flex:1;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-sm);padding:12px 13px;box-shadow:var(--shadow-card);display:flex;align-items:center;gap:10px}
-.qstat .qicon{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;font-size:16px;flex-shrink:0}
+.qstat .qicon{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;font-size:16px;flex-shrink:0;transition:filter .3s}
 .qstat.week .qicon{background:rgba(61,214,181,.15);color:var(--accent)}
 .qstat.stretch .qicon{background:rgba(125,211,192,.15);color:var(--stretch)}
+@keyframes flameGlow{0%,100%{filter:drop-shadow(0 0 0 rgba(242,177,52,.7))}50%{filter:drop-shadow(0 0 5px rgba(242,177,52,.9))}}
+.qstat .qicon.hot{animation:flameGlow 1.8s ease-in-out infinite}
 .qstat .qtext{flex:1;min-width:0}
 .qstat .qv{font-size:17px;font-weight:800;letter-spacing:-.4px;line-height:1;font-variant-numeric:tabular-nums}
 .qstat .ql{font-size:9.5px;color:var(--text-dim);margin-top:4px;font-weight:650;text-transform:uppercase;letter-spacing:.3px;line-height:1.3}
@@ -88,7 +94,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;color:inhe
 /* ---------- Workout cards (day selector) ---------- */
 .day-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:11px;display:flex;align-items:center;gap:14px;position:relative;overflow:hidden;transition:transform .12s,border-color .15s;box-shadow:var(--shadow-card);cursor:pointer}
 .day-card:active{transform:scale(.985)}
-.day-card .bar{position:absolute;left:0;top:0;bottom:0;width:4px}
+.day-card .bar{position:absolute;left:0;top:0;bottom:0;width:5px}
 .day-card .icon{width:46px;height:46px;border-radius:12px;display:grid;place-items:center;flex-shrink:0;font-size:21px;font-weight:800}
 .day-card .info{flex:1;min-width:0}
 .day-card .info h3{font-size:16.5px;font-weight:700;letter-spacing:-.2px}
@@ -794,6 +800,8 @@ function libFind(id){
 
 /* helper para passar strings em atributos onclick sem conflito de aspas */
 function esc(s){ return s.replace(/'/g,"\\'"); }
+/* helper para pôr strings dentro de atributos value="..." em segurança */
+function escHtml(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
 
 /* ============================================================
    ESTADO + PERSISTÊNCIA (window.storage)
@@ -841,6 +849,7 @@ async function loadState(){
   if(!STATE.swaps) STATE.swaps = {};
   if(!STATE.hiddenPlans) STATE.hiddenPlans = {};   // planos embutidos (push/pull/legs/plyo) apagados pelo utilizador
   if(!STATE.schedule) STATE.schedule = {};          // { 0..6 (getDay()): planKey | 'rest' | 'run' }
+  if(!STATE.sync) STATE.sync = {};                  // { url, key, code } — Supabase, opcional
   await seedNotionPlans();
 }
 
@@ -882,7 +891,9 @@ async function seedNotionPlans(){
   STATE.notionPlanSeeded = true;
   await saveState();
 }
-async function saveState(){
+async function saveState(opts){
+  opts = opts || {};
+  if(!opts.fromSync) STATE._updatedAt = Date.now();
   try{
     const data = JSON.stringify(STATE);
     if(hasLocalStorage){
@@ -891,6 +902,140 @@ async function saveState(){
       await window.storage.set('treino_state', data);
     }
   }catch(e){ console.error('save failed', e); }
+  if(!opts.fromSync) syncPush();
+}
+
+/* ============================================================
+   SINCRONIZAÇÃO ENTRE DISPOSITIVOS (Supabase, opcional e grátis)
+   Mesmo modelo "blob por app" que as outras apps do Vida OS já usam —
+   se já tens um projeto Supabase configurado noutra app, podes reutilizá-lo
+   aqui (mesma URL/chave), só o código de sincronização precisa de ser igual
+   nos teus dispositivos para os treinos ficarem ligados entre eles.
+   ============================================================ */
+const SYNC_APP = 'gymos';
+let syncCfg = null;
+function loadSyncCfg(){
+  const s = STATE.sync || {};
+  syncCfg = (s.url && s.key && s.code) ? { url: s.url.replace(/\/$/,''), key: s.key, code: s.code } : null;
+  return syncCfg;
+}
+function syncAuthHeaders(key){
+  const h = { apikey: key };
+  if(key && key.indexOf('eyJ')===0) h.Authorization = 'Bearer '+key;
+  return h;
+}
+let syncPushTimer = null;
+function syncPush(){
+  if(!syncCfg) return;
+  clearTimeout(syncPushTimer);
+  syncPushTimer = setTimeout(doSyncPush, 1200);
+}
+async function doSyncPush(){
+  if(!syncCfg) return;
+  try{
+    const body = [{ app: SYNC_APP, sync_code: syncCfg.code, data: STATE, updated_at: new Date(STATE._updatedAt||Date.now()).toISOString() }];
+    const r = await fetch(`${syncCfg.url}/rest/v1/app_state?on_conflict=app,sync_code`, {
+      method:'POST',
+      headers: Object.assign({'Content-Type':'application/json', Prefer:'resolution=merge-duplicates,return=minimal'}, syncAuthHeaders(syncCfg.key)),
+      body: JSON.stringify(body),
+    });
+    if(!r.ok) throw new Error('HTTP '+r.status);
+  }catch(e){ console.warn('sync push falhou', e); }
+}
+// junta duas cópias do estado sem perder dados: treinos registados nos dois lados juntam-se por
+// dia (sem duplicar a mesma sessão), e as tabelas simples (vídeos, recordes, planos, horário…)
+// ficam com as entradas dos dois lados — a sessão em curso nunca sincroniza (é só do dispositivo).
+function mergeGymState(local, remote){
+  const remoteNewer = (remote._updatedAt||0) >= (local._updatedAt||0);
+  const newer = remoteNewer ? remote : local, older = remoteNewer ? local : remote;
+  const out = JSON.parse(JSON.stringify(newer));
+  out.log = out.log || {};
+  const oldLog = older.log || {};
+  for(const date in oldLog){
+    const cur = out.log[date] || [];
+    const seen = new Set(cur.map(s=>s.when));
+    oldLog[date].forEach(s=>{ if(!seen.has(s.when)){ cur.push(s); seen.add(s.when); } });
+    out.log[date] = cur;
+  }
+  ['videos','lastLoads','records','stretchLog','customPlans','swaps','hiddenPlans','schedule'].forEach(field=>{
+    const obj = out[field] && typeof out[field]==='object' ? out[field] : {};
+    const old = older[field] || {};
+    for(const k in old) if(!(k in obj)) obj[k] = old[k];
+    out[field] = obj;
+  });
+  out.current = local.current || null;
+  out._updatedAt = Math.max(local._updatedAt||0, remote._updatedAt||0);
+  return out;
+}
+async function syncPull(){
+  if(!syncCfg) return;
+  try{
+    const url = `${syncCfg.url}/rest/v1/app_state?app=eq.${SYNC_APP}&sync_code=eq.${encodeURIComponent(syncCfg.code)}&select=data,updated_at`;
+    const r = await fetch(url, { headers: syncAuthHeaders(syncCfg.key) });
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const rows = await r.json();
+    if(!rows.length){ syncPush(); return; }
+    const remote = rows[0].data || {};
+    const merged = mergeGymState(STATE, remote);
+    const changed = JSON.stringify(merged) !== JSON.stringify(STATE);
+    if(changed){ STATE = merged; await saveState({fromSync:true}); renderCurrentView(); }
+  }catch(e){ console.warn('sync pull falhou', e); }
+}
+async function syncTest(cfg){
+  const u = cfg.url.replace(/\/$/,'');
+  const r = await fetch(`${u}/rest/v1/app_state?select=app&limit=1`, { headers: syncAuthHeaders(cfg.key) });
+  if(!r.ok) throw new Error('HTTP '+r.status+' — verifica URL/chave e se a tabela "app_state" existe.');
+  return true;
+}
+// re-renderiza o que estiver visível no momento (usado depois de um pull trazer dados novos)
+function renderCurrentView(){
+  const active = document.querySelector('.view.active');
+  if(!active) return;
+  const id = active.id.replace('view-','');
+  if(id==='home') renderHome();
+  else if(id==='stretch') renderStretch();
+  else if(id==='progress') renderProgress();
+  else if(id==='menu') renderMenu();
+  else if(id==='library') renderLibraryView();
+  else if(id==='schedule') renderScheduleView();
+  // sessão/builder não se re-renderizam sozinhos: evita perder o que está a meio de editar/registar
+}
+const SYNC_SQL = `-- Só precisas de correr isto se AINDA NÃO tiveres a tabela "app_state" criada
+-- (se já sincronizas outra app do Vida OS com Supabase, esta tabela já existe — não precisas de repetir).
+create table if not exists app_state (
+  app text not null,
+  sync_code text not null,
+  data jsonb not null,
+  updated_at timestamptz not null default now(),
+  primary key (app, sync_code)
+);
+alter table app_state enable row level security;
+create policy "acesso por codigo" on app_state
+  for all using (true) with check (true);`;
+function saveSyncCfg(){
+  const url = ($('#sy-url')||{}).value || ''; const key = ($('#sy-key')||{}).value || ''; const code = ($('#sy-code')||{}).value || '';
+  STATE.sync = { url: url.trim(), key: key.trim(), code: code.trim() };
+  saveState();
+  loadSyncCfg();
+  const st = $('#sy-status');
+  if(st) st.textContent = syncCfg ? '✅ Sincronização ligada' : 'Preenche URL, chave e código.';
+  if(syncCfg) syncPull();
+}
+async function testSyncCfg(){
+  const url = (($('#sy-url')||{}).value||'').trim(); const key = (($('#sy-key')||{}).value||'').trim();
+  const st = $('#sy-status');
+  if(!url || !key){ if(st) st.textContent='Preenche URL e chave.'; return; }
+  if(st) st.textContent = 'A testar…';
+  try{ await syncTest({url,key}); if(st) st.textContent='✅ Ligação OK — clica Ligar.'; }
+  catch(e){ if(st) st.textContent = '⚠️ '+e.message; }
+}
+function showSyncSQL(){
+  const html = `<p style="font-size:12px;color:var(--text-dim);font-weight:500;margin:0">Cola no SQL Editor e clica RUN — só é preciso se ainda não tiveres esta tabela de outra app.</p>
+    <div class="chart-card" style="white-space:pre-wrap;font-family:monospace;font-size:11.5px;margin-top:10px">${SYNC_SQL.replace(/</g,'&lt;')}</div>
+    <button class="finish-btn" style="margin-top:12px" id="sync-sql-copy">Copiar</button>`;
+  openOverlay('SQL do Supabase', html);
+  const btn = document.getElementById('sync-sql-copy');
+  if(btn) btn.addEventListener('click', ()=>{ navigator.clipboard?.writeText(SYNC_SQL); toast('SQL copiado'); });
 }
 
 /* ============================================================
@@ -922,6 +1067,21 @@ function nav(v){
 /* ============================================================
    HOME
    ============================================================ */
+// anel de progresso da meta semanal (SVG), usado no hero-card
+function weekGoalRingSVG(){
+  const pct = Math.min(1, countThisWeek()/WEEKLY_GOAL);
+  const r = 17, c = 2*Math.PI*r;
+  const off = (c*(1-pct)).toFixed(1);
+  return `<div class="hero-ring">
+    <svg viewBox="0 0 40 40" width="44" height="44">
+      <circle cx="20" cy="20" r="${r}" fill="none" stroke="rgba(255,255,255,.22)" stroke-width="4"/>
+      <circle cx="20" cy="20" r="${r}" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round"
+        stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${off}" transform="rotate(-90 20 20)" style="transition:stroke-dashoffset .5s ease"/>
+    </svg>
+    <div class="rg-txt">${countThisWeek()}/${WEEKLY_GOAL}</div>
+  </div>`;
+}
+
 function weekStrip(){
   const now = new Date();
   const dow = (now.getDay()+6)%7; // segunda=0
@@ -968,6 +1128,72 @@ function unhidePlan(key){
   renderMenu();
 }
 
+/* ============================================================
+   ADERÊNCIA — cumprimento do horário semanal definido pelo utilizador
+   ============================================================ */
+// dia neutro (não conta para aderência): sem horário definido, ou marcado como descanso/corrida
+// ("corrida" ainda não tem registo próprio na app, por isso não é penalizado)
+function isNeutralScheduleDay(dow){
+  const s = STATE.schedule && STATE.schedule[dow];
+  return !s || s==='rest' || s==='run';
+}
+function scheduleMet(dateObj){
+  return !!(STATE.log[dateKey(dateObj)] && STATE.log[dateKey(dateObj)].length>0);
+}
+// dias consecutivos (a contar de hoje/ontem) em que o horário foi cumprido —
+// dias neutros não quebram a sequência, só não a alimentam
+function adherenceStreak(){
+  let d = new Date();
+  if(!isNeutralScheduleDay(d.getDay()) && !scheduleMet(d)) d.setDate(d.getDate()-1);
+  let streak = 0;
+  for(let i=0;i<365;i++){
+    if(isNeutralScheduleDay(d.getDay())){ d.setDate(d.getDate()-1); continue; }
+    if(scheduleMet(d)){ streak++; d.setDate(d.getDate()-1); }
+    else break;
+  }
+  return streak;
+}
+// % de dias de treino agendados (não-neutros) cumpridos nos últimos `days` dias — null se não houver nenhum dia agendado
+function adherenceRate(days){
+  let total=0, met=0;
+  const d = new Date();
+  for(let i=0;i<days;i++){
+    if(!isNeutralScheduleDay(d.getDay())){ total++; if(scheduleMet(d)) met++; }
+    d.setDate(d.getDate()-1);
+  }
+  return total ? Math.round(met/total*100) : null;
+}
+function adherenceGrid(){
+  const cells = [];
+  for(let i=6;i>=0;i--){
+    const d = new Date(); d.setDate(d.getDate()-i);
+    const neutral = isNeutralScheduleDay(d.getDay());
+    const isToday = dateKey(d)===todayKey();
+    const met = !neutral && scheduleMet(d);
+    let icon = neutral ? '' : met ? '✅' : isToday ? '⏳' : '❌';
+    cells.push(`<div class="daycell ${isToday?'today':''}">
+      <div class="dn">${WD[d.getDay()]}</div>
+      <div class="dd">${d.getDate()}</div>
+      <div style="font-size:13px;margin-top:4px;line-height:1">${icon}</div>
+    </div>`);
+  }
+  return `<div class="weekstrip">${cells.join('')}</div>`;
+}
+function adherenceCard(){
+  const streak = adherenceStreak();
+  const rate7 = adherenceRate(7);
+  const rate30 = adherenceRate(30);
+  return `<div class="chart-card">
+    <h4>🎯 Aderência ao horário</h4>
+    <div class="csub">${rate7!=null ? `${rate7}% cumprido nos últimos 7 dias` : 'Define um horário semanal em Menu → Horário semanal para veres a aderência'}</div>
+    ${adherenceGrid()}
+    <div style="display:flex;justify-content:space-between;gap:8px;margin-top:12px;font-size:12px;color:var(--text-dim);font-weight:600">
+      <div>🔥 <span style="color:var(--text);font-weight:800">${streak}</span> dia${streak!==1?'s':''} seguido${streak!==1?'s':''} a cumprir</div>
+      ${rate30!=null ? `<div>30 dias: <span style="color:var(--text);font-weight:800">${rate30}%</span></div>` : ''}
+    </div>
+  </div>`;
+}
+
 // sugere o treino de hoje: primeiro pelo horário semanal definido pelo utilizador,
 // com fallback para o ciclo PPL automático (rotação pelo último treino de força feito)
 function suggestNextPlan(){
@@ -989,9 +1215,11 @@ function renderHome(){
   const now = new Date();
   $('#barSub').textContent = `${WD[now.getDay()]}, ${now.getDate()} ${MON[now.getMonth()]}`;
 
+  const adhStreak = adherenceStreak(), strStreak = stretchStreak();
   let html = `<div class="quickstats">
     <div class="qstat week"><div class="qicon">📅</div><div class="qtext"><div class="qv">${countThisWeek()}/${WEEKLY_GOAL}</div><div class="ql">Treinos esta semana</div></div></div>
-    <div class="qstat stretch"><div class="qicon">🔥</div><div class="qtext"><div class="qv">${stretchStreak()}</div><div class="ql">Dias de alongamento</div></div></div>
+    <div class="qstat week"><div class="qicon ${adhStreak>0?'hot':''}">🎯</div><div class="qtext"><div class="qv">${adhStreak}</div><div class="ql">Dias a cumprir horário</div></div></div>
+    <div class="qstat stretch"><div class="qicon ${strStreak>0?'hot':''}">🔥</div><div class="qtext"><div class="qv">${strStreak}</div><div class="ql">Dias de alongamento</div></div></div>
   </div>`;
   html += weekStrip();
 
@@ -1018,12 +1246,12 @@ function renderHome(){
     if(sched==='rest'){
       html += `<div class="hero-card">
         <div class="hero-badge">🗓️ Hoje, pelo teu horário</div>
-        <div class="hero-main"><div class="hero-ic">😴</div><div><div class="hero-t">Descanso</div><div class="hero-s">Aproveita para recuperar — os alongamentos continuam disponíveis</div></div></div>
+        <div class="hero-main"><div class="hero-ic">😴</div><div><div class="hero-t">Descanso</div><div class="hero-s">Aproveita para recuperar — os alongamentos continuam disponíveis</div></div>${weekGoalRingSVG()}</div>
       </div>`;
     } else if(sched==='run'){
       html += `<div class="hero-card">
         <div class="hero-badge">🗓️ Hoje, pelo teu horário</div>
-        <div class="hero-main"><div class="hero-ic">🏃</div><div><div class="hero-t">Corrida</div><div class="hero-s">Ainda sem registo dedicado nesta app — regista no teu relógio</div></div></div>
+        <div class="hero-main"><div class="hero-ic">🏃</div><div><div class="hero-t">Corrida</div><div class="hero-s">Ainda sem registo dedicado nesta app — regista no teu relógio</div></div>${weekGoalRingSVG()}</div>
       </div>`;
     } else {
       const sugKey = suggestNextPlan();
@@ -1035,6 +1263,7 @@ function renderHome(){
           <div class="hero-main">
             <div class="hero-ic">${sp.icon||'💪'}</div>
             <div><div class="hero-t">${sp.name}</div><div class="hero-s">${sp.exercises.length} exercícios · continua o teu ciclo</div></div>
+            ${weekGoalRingSVG()}
           </div>
           <div class="hero-cta">Começar treino →</div>
         </button>`;
@@ -1048,7 +1277,7 @@ function renderHome(){
     const p = STRENGTH[key];
     const n = p.exercises.length;
     html += `<div class="day-card" onclick="openSession('${key}')" style="cursor:pointer">
-      <div class="bar" style="background:${p.color}"></div>
+      <div class="bar" style="background:${p.color};box-shadow:0 0 10px 0 ${p.color}"></div>
       <div class="icon" style="background:linear-gradient(135deg,${p.color}40,${p.color}14);color:${p.color}">${p.icon}</div>
       <div class="info"><h3>${p.name}</h3><p>${n} exercícios · + aquecimento, corretivo e alongamento</p></div>
       <button class="hdel" onclick="event.stopPropagation();hidePlan('${key}','${esc(p.name)}')" aria-label="Apagar plano">🗑</button>
@@ -1062,7 +1291,7 @@ function renderHome(){
     const p = PLYO[key];
     const n = p.exercises.length;
     html += `<div class="day-card" onclick="openSession('${pkey}')" style="cursor:pointer">
-      <div class="bar" style="background:${p.color}"></div>
+      <div class="bar" style="background:${p.color};box-shadow:0 0 10px 0 ${p.color}"></div>
       <div class="icon" style="background:linear-gradient(135deg,${p.color}40,${p.color}14);color:${p.color}">${p.icon}</div>
       <div class="info"><h3>${p.name}</h3><p>${p.sub} · ${n} exercícios + suporte</p></div>
       <button class="hdel" onclick="event.stopPropagation();hidePlan('${pkey}','${esc(p.name)}')" aria-label="Apagar plano">🗑</button>
@@ -1074,7 +1303,7 @@ function renderHome(){
     for(const id in STATE.customPlans){
       const p = STATE.customPlans[id];
       html += `<div class="day-card" onclick="openSession('custom_${id}')" style="cursor:pointer">
-        <div class="bar" style="background:${p.color||'var(--accent)'}"></div>
+        <div class="bar" style="background:${p.color||'var(--accent)'};box-shadow:0 0 10px 0 ${p.color||'var(--accent)'}"></div>
         <div class="icon" style="background:linear-gradient(135deg,${p.color||'var(--accent)'}40,${p.color||'var(--accent)'}14);color:${p.color||'var(--accent)'}">${p.icon||'🛠️'}</div>
         <div class="info"><h3>${p.name}</h3><p>${p.exercises.length} exercícios · plano personalizado</p></div>
         <button class="hdel" onclick="event.stopPropagation();deleteCustomPlan('${id}')" aria-label="Apagar plano">🗑</button>
@@ -1885,6 +2114,9 @@ function renderProgress(){
     <div class="stat"><div class="v">${(totalVol/1000).toFixed(1)}t</div><div class="l">Volume total levantado</div></div>
   </div>`;
 
+  // aderência ao horário semanal
+  html += adherenceCard();
+
   // chart: últimas 6 semanas (nº treinos)
   html += weekChart();
 
@@ -2059,6 +2291,20 @@ function renderMenu(){
 
   ${hiddenPlansList()}
 
+  <div class="sec-label">Sincronização entre dispositivos</div>
+  <div class="set-card" style="padding:15px 16px">
+    <div class="intro" style="margin-bottom:12px">Opcional e grátis, via Supabase. Se já sincronizas outra app do Vida OS, podes usar o mesmo projeto (mesma URL + chave) — só o "código de sincronização" tem de ser igual nos teus dispositivos para os treinos ficarem ligados entre eles.</div>
+    <input class="lib-search" id="sy-url" type="url" placeholder="Project URL (https://xxxx.supabase.co)" value="${escHtml((STATE.sync&&STATE.sync.url)||'')}">
+    <input class="lib-search" id="sy-key" type="password" placeholder="Chave anónima (anon/public)" value="${escHtml((STATE.sync&&STATE.sync.key)||'')}">
+    <input class="lib-search" id="sy-code" type="text" placeholder="Código de sincronização (à tua escolha)" value="${escHtml((STATE.sync&&STATE.sync.code)||'')}">
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <button class="finish-btn" style="flex:1;padding:11px;font-size:13.5px" onclick="saveSyncCfg()">Ligar</button>
+      <button class="finish-btn ghost" style="flex:1;padding:11px;font-size:13.5px" onclick="testSyncCfg()">Testar</button>
+      <button class="finish-btn ghost" style="flex:1;padding:11px;font-size:13.5px" onclick="showSyncSQL()">Ver SQL</button>
+    </div>
+    <div id="sy-status" style="font-size:12px;color:var(--text-dim);font-weight:600">${syncCfg?'✅ Sincronização ligada':'Não configurada'}</div>
+  </div>
+
   <div class="sec-label">Dados</div>
   <div class="set-card">
     <button class="set-item" onclick="exportData()"><div class="si-ic">📤</div><div class="si-tx"><div class="a">Exportar dados</div><div class="b">Copia o teu histórico (p/ passar p/ outro dispositivo)</div></div><div class="si-ar">›</div></button>
@@ -2099,7 +2345,7 @@ function toggleInstall(which){
 }
 
 function exportData(){
-  const data = JSON.stringify({log:STATE.log, videos:STATE.videos, lastLoads:STATE.lastLoads, stretchLog:STATE.stretchLog, records:STATE.records, customPlans:STATE.customPlans, swaps:STATE.swaps});
+  const data = JSON.stringify({log:STATE.log, videos:STATE.videos, lastLoads:STATE.lastLoads, stretchLog:STATE.stretchLog, records:STATE.records, customPlans:STATE.customPlans, swaps:STATE.swaps, hiddenPlans:STATE.hiddenPlans, schedule:STATE.schedule});
   navigator.clipboard?.writeText(data).then(
     ()=>toast('Dados copiados para a área de transferência'),
     ()=>prompt('Copia os teus dados:', data)
@@ -2117,6 +2363,8 @@ function importData(){
     if(d.records) STATE.records = {...STATE.records, ...d.records};
     if(d.customPlans) STATE.customPlans = {...STATE.customPlans, ...d.customPlans};
     if(d.swaps) STATE.swaps = {...STATE.swaps, ...d.swaps};
+    if(d.hiddenPlans) STATE.hiddenPlans = {...STATE.hiddenPlans, ...d.hiddenPlans};
+    if(d.schedule) STATE.schedule = {...STATE.schedule, ...d.schedule};
     saveState(); toast('Dados importados ✓'); renderMenu();
   }catch(e){ toast('Dados inválidos'); }
 }
@@ -2131,7 +2379,16 @@ function resetData(){
    ============================================================ */
 (async function init(){
   await loadState();
+  loadSyncCfg();
   renderHome();
+  if(syncCfg){
+    syncPull();
+    setInterval(()=>{ if(syncCfg) syncPull(); }, 60000);
+  }
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.hidden){ if(syncPushTimer) doSyncPush(); }
+    else if(syncCfg) syncPull();
+  });
 })();
 
 </script>
