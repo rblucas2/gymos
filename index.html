@@ -402,6 +402,9 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;color:inhe
 <!-- ============ HORÁRIO SEMANAL ============ -->
 <div class="view" id="view-schedule"></div>
 
+<!-- ============ TODOS OS PLANOS ============ -->
+<div class="view" id="view-plans"></div>
+
 <!-- ============ SAÚDE ============ -->
 <div class="view" id="view-health"></div>
 
@@ -1003,6 +1006,7 @@ function renderCurrentView(){
   else if(id==='library') renderLibraryView();
   else if(id==='schedule') renderScheduleView();
   else if(id==='health') renderHealthView();
+  else if(id==='plans') renderPlansView();
   // sessão/builder não se re-renderizam sozinhos: evita perder o que está a meio de editar/registar
 }
 const SYNC_SQL = `-- Só precisas de correr isto se AINDA NÃO tiveres a tabela "app_state" criada
@@ -1215,13 +1219,31 @@ function suggestNextPlan(){
   return order[(order.indexOf(last.plan)+1)%order.length];
 }
 
+// pequeno cartão de prontidão no topo do Hoje — mostra o que já foi registado em Saúde,
+// ou convida a registar (toca para abrir Saúde). Fica logo à vista, sem estar escondido no Menu.
+function readinessBadge(){
+  const e = healthEntry(todayKey());
+  if(!e.readiness){
+    return `<button onclick="openHealth()" style="display:flex;align-items:center;gap:9px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-sm);padding:11px 13px;margin-bottom:14px;width:100%;text-align:left;box-shadow:var(--shadow-card)">
+      <span style="font-size:17px">❤️</span><span style="font-size:12.5px;color:var(--text-dim);font-weight:600;flex:1">Como te sentes hoje? Toca para registar</span><span style="color:var(--text-faint)">›</span>
+    </button>`;
+  }
+  const opt = READINESS_OPTS.find(o=>o.v===e.readiness);
+  const bad = parseInt(e.readiness)<=2;
+  return `<button onclick="openHealth()" style="display:flex;align-items:center;gap:9px;background:var(--surface);border:1px solid ${bad?'var(--warn)':'var(--line)'};border-radius:var(--radius-sm);padding:11px 13px;margin-bottom:14px;width:100%;text-align:left;box-shadow:var(--shadow-card)">
+    <span style="font-size:17px">${opt?opt.l.split(' ')[0]:'❤️'}</span><span style="font-size:12.5px;color:var(--text);font-weight:650;flex:1">${opt?opt.l.slice(2):'Prontidão registada'}</span><span style="color:var(--text-faint)">›</span>
+  </button>`;
+}
+
 function renderHome(){
   $('#barTitle').textContent = 'Olá, Rodrigo 👋';
   const now = new Date();
   $('#barSub').textContent = `${WD[now.getDay()]}, ${now.getDate()} ${MON[now.getMonth()]}`;
 
+  let html = readinessBadge();
+
   const adhStreak = adherenceStreak(), strStreak = stretchStreak();
-  let html = `<div class="quickstats">
+  html += `<div class="quickstats">
     <div class="qstat week"><div class="qicon">📅</div><div class="qtext"><div class="qv">${countThisWeek()}/${WEEKLY_GOAL}</div><div class="ql">Treinos esta semana</div></div></div>
     <div class="qstat week"><div class="qicon ${adhStreak>0?'hot':''}">🎯</div><div class="qtext"><div class="qv">${adhStreak}</div><div class="ql">Dias a cumprir horário</div></div></div>
     <div class="qstat stretch"><div class="qicon ${strStreak>0?'hot':''}">🔥</div><div class="qtext"><div class="qv">${strStreak}</div><div class="ql">Dias de alongamento</div></div></div>
@@ -1276,6 +1298,37 @@ function renderHome(){
     }
   }
 
+  html += `<div class="sec-label">Os teus planos</div>`;
+  html += `<div class="day-card" onclick="openPlans()" style="cursor:pointer">
+    <div class="icon" style="background:var(--surface-2);color:var(--accent)">📋</div>
+    <div class="info"><h3>Ver todos os planos</h3><p>${countVisiblePlans()} disponíveis · gerir, apagar ou criar novos</p></div>
+  </div>`;
+
+  $('#view-home').innerHTML = html;
+}
+
+function countVisiblePlans(){
+  let n = 0;
+  for(const key in STRENGTH) if(!(STATE.hiddenPlans && STATE.hiddenPlans[key])) n++;
+  for(const key in PLYO) if(!(STATE.hiddenPlans && STATE.hiddenPlans['plyo_'+key])) n++;
+  n += Object.keys(STATE.customPlans||{}).length;
+  return n;
+}
+
+/* ============================================================
+   TODOS OS PLANOS — catálogo completo (força, pliometria, personalizados),
+   fora do ecrã Hoje para este ficar focado só no treino do dia
+   ============================================================ */
+function openPlans(){
+  renderPlansView();
+  nav('plans');
+  $$('.navbtn').forEach(b=>b.classList.remove('active'));
+}
+function renderPlansView(){
+  $('#barTitle').textContent = 'Planos';
+  $('#barSub').textContent = 'Todo o teu catálogo de treinos';
+  let html = `<button class="backlink" onclick="nav('home')">‹ Voltar</button>`;
+
   html += `<div class="sec-label">💪 Treino de Força (PPL)</div>`;
   for(const key in STRENGTH){
     if(STATE.hiddenPlans && STATE.hiddenPlans[key]) continue;
@@ -1320,7 +1373,7 @@ function renderHome(){
     <div class="info"><h3>Criar plano personalizado</h3><p>Escolhe exercícios da biblioteca e monta o teu treino</p></div>
   </button>`;
 
-  $('#view-home').innerHTML = html;
+  $('#view-plans').innerHTML = html;
 }
 
 /* ============================================================
@@ -1418,14 +1471,14 @@ function renderSession(){
   const mainLabel = plan.type==='strength' ? '💪 Força' : '⚡ Pliometria';
   const mainCards = d.exercises.map((ex,i)=> exerciseCard(ex, i, plan.type, plan.key)).join('');
 
-  // 1º AQUECIMENTO (aberto — é por onde começas)
+  // 1º AQUECIMENTO (fechado por omissão — é rotina rápida, não onde se perde tempo)
   if(support){
     html += accordion('🔥 1 · Aquecimento', 'Mobilidade + ativação', support.warmup.length+' exercícios', 'var(--warn)',
-      support.warmup.map(s=>supportCard(s)).join(''), true);
+      support.warmup.map(s=>supportCard(s)).join(''), false);
   }
-  // 2º TREINO PRINCIPAL
+  // 2º TREINO PRINCIPAL (aberto por omissão — é aqui que registas séries a maior parte do tempo)
   html += accordion(`${plan.type==='strength'?'💪':'⚡'} 2 · ${plan.type==='strength'?'Força':'Pliometria'}`, d.name, d.exercises.length+' exercícios', d.color||'var(--accent)',
-    mainCards, false);
+    mainCards, true, 'acc-main');
   // 3º CORRETIVO
   if(support){
     html += accordion('🩹 3 · Corretivo', 'Estabilidade', support.corrective.length+' exercícios', 'var(--accent)',
@@ -1442,10 +1495,30 @@ function renderSession(){
 
   $('#view-session').innerHTML = html;
   bindAccordions();
+
+  // abre logo o primeiro exercício por terminar da secção principal — poupa um toque
+  try{
+    const firstId = firstIncompleteExerciseId(d.exercises);
+    if(firstId){
+      const card = document.getElementById('ex-'+firstId);
+      const head = card && card.querySelector('.ex-head');
+      if(head) toggleEx(head);
+    }
+  }catch(e){ /* não crítico — a secção continua utilizável mesmo sem abrir sozinha */ }
+}
+// devolve o id do primeiro exercício ainda sem todas as séries feitas (ou o primeiro, se nenhum tiver sets guardados)
+function firstIncompleteExerciseId(exercises){
+  const cur = STATE.current;
+  for(const ex of exercises){
+    const sets = cur && cur.sets && cur.sets[ex.id];
+    const allDone = sets && sets.length>0 && sets.every(s=>s.done);
+    if(!allDone) return ex.id;
+  }
+  return exercises.length ? exercises[0].id : null;
 }
 
-function accordion(label, title, sub, color, inner, open){
-  return `<div class="accordion">
+function accordion(label, title, sub, color, inner, open, id){
+  return `<div class="accordion"${id?` id="${id}"`:''}>
     <button class="acc-head ${open?'open':''}" onclick="toggleAcc(this)">
       <div class="tag" style="background:linear-gradient(135deg,${color}40,${color}14);color:${color};font-weight:800">${label.split(' ')[0]}</div>
       <div class="htxt"><div class="t">${label.slice(label.indexOf(' ')+1)}</div><div class="s">${sub}</div></div>
