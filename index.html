@@ -402,6 +402,9 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;color:inhe
 <!-- ============ HORÁRIO SEMANAL ============ -->
 <div class="view" id="view-schedule"></div>
 
+<!-- ============ DETALHE DE UM DIA (tocado na weekstrip do Hoje) ============ -->
+<div class="view" id="view-daydetail"></div>
+
 <!-- ============ TODOS OS PLANOS ============ -->
 <div class="view" id="view-plans"></div>
 
@@ -1053,6 +1056,7 @@ async function loadState(){
   if(!STATE.swaps) STATE.swaps = {};
   if(!STATE.hiddenPlans) STATE.hiddenPlans = {};   // planos embutidos (push/pull/legs/plyo) apagados pelo utilizador
   if(!STATE.schedule) STATE.schedule = {};          // { 0..6 (getDay()): planKey | 'rest' | 'run' }
+  if(!STATE.scheduleTime) STATE.scheduleTime = {};  // { 0..6 (getDay()): 'HH:MM' } — hora a que treinas nesse dia, opcional
   if(!STATE.sync) STATE.sync = {};                  // { url, key, code } — Supabase, opcional
   if(!STATE.health) STATE.health = {};              // { 'YYYY-MM-DD': {sleepHours, restingHR, steps, readiness} } — entrada manual
   await seedNotionPlans();
@@ -1162,7 +1166,7 @@ function mergeGymState(local, remote){
     oldLog[date].forEach(s=>{ if(!seen.has(s.when)){ cur.push(s); seen.add(s.when); } });
     out.log[date] = cur;
   }
-  ['videos','lastLoads','records','stretchLog','customPlans','customStretchRoutines','swaps','hiddenPlans','schedule','health'].forEach(field=>{
+  ['videos','lastLoads','records','stretchLog','customPlans','customStretchRoutines','swaps','hiddenPlans','schedule','scheduleTime','health'].forEach(field=>{
     const obj = out[field] && typeof out[field]==='object' ? out[field] : {};
     const old = older[field] || {};
     for(const k in old) if(!(k in obj)) obj[k] = old[k];
@@ -1299,15 +1303,74 @@ function weekStrip(){
     const trained = STATE.log[key] && STATE.log[key].length>0;
     const isToday = key===todayKey();
     const sched = STATE.schedule && STATE.schedule[d.getDay()];
+    const schedTime = STATE.scheduleTime && STATE.scheduleTime[d.getDay()];
     const schedIco = sched==='rest' ? '😴' : sched==='run' ? '🏃' : (sched && planExists(sched)) ? (getPlan(sched).data.icon||'💪') : '';
-    html += `<div class="daycell ${isToday?'today':''}">
+    html += `<div class="daycell ${isToday?'today':''}" onclick="openDayDetail('${key}')" style="cursor:pointer">
       <div class="dn">${WD[d.getDay()]}</div>
       <div class="dd">${d.getDate()}</div>
       ${schedIco ? `<div style="font-size:10px;line-height:1;margin-top:2px">${schedIco}</div>` : ''}
+      ${schedTime ? `<div style="font-size:8px;line-height:1;margin-top:1px;color:var(--text-dim)">${schedTime}</div>` : ''}
       <div class="dot ${trained?'':'empty'}"></div>
     </div>`;
   }
   return html+'</div>';
+}
+// abre o detalhe de um dia da semana (tocado na weekstrip do Hoje): o que estava planeado
+// (incl. hora, se definida) e o que foi mesmo feito nesse dia, com atalho para treinar/editar.
+function openDayDetail(key){
+  renderDayDetail(key);
+  nav('daydetail');
+  $$('.navbtn').forEach(b=>b.classList.remove('active'));
+}
+function renderDayDetail(key){
+  const d = new Date(key+'T00:00:00');
+  const dow = d.getDay();
+  const isToday = key===todayKey();
+  const isFuture = key>todayKey();
+  const sched = STATE.schedule && STATE.schedule[dow];
+  const schedTime = STATE.scheduleTime && STATE.scheduleTime[dow];
+  const entries = STATE.log[key] || [];
+  const stretchDone = STATE.stretchLog[key] ? Object.values(STATE.stretchLog[key]).filter(Boolean).length : 0;
+
+  $('#barTitle').textContent = `${WD[dow]}, ${d.getDate()} ${MON[d.getMonth()]}`;
+  $('#barSub').textContent = isToday ? 'Hoje' : isFuture ? 'A vir' : 'Já passou';
+
+  let html = `<button class="backlink" onclick="nav('home')">‹ Voltar</button>`;
+
+  // o que estava/está planeado para este dia
+  let planCard;
+  if(sched==='rest') planCard = { ic:'😴', t:'Descanso', s:'Dia de recuperação no teu horário.' };
+  else if(sched==='run') planCard = { ic:'🏃', t:'Corrida', s:'Sem registo dedicado nesta app — regista no teu relógio.' };
+  else if(sched && planExists(sched)){ const p=getPlan(sched).data; planCard = { ic:p.icon||'💪', t:p.name, s:p.exercises.length+' exercícios', key:sched }; }
+  else planCard = { ic:'—', t:'Sem horário definido', s:'Define em Menu → Horário semanal.' };
+
+  html += `<div class="hero-card" style="${planCard.key && (isToday||isFuture) ? 'cursor:pointer' : ''}" ${planCard.key && (isToday||isFuture) ? `onclick="openSession('${planCard.key}')"` : ''}>
+    <div class="hero-badge">${schedTime ? `🕐 Horário: ${schedTime}` : '🗓️ Plano do dia'}</div>
+    <div class="hero-main"><div class="hero-ic">${planCard.ic}</div><div><div class="hero-t">${planCard.t}</div><div class="hero-s">${planCard.s}</div></div></div>
+    ${planCard.key && (isToday||isFuture) ? `<div class="hero-cta">${isToday?'Começar treino →':'Ver plano →'}</div>` : ''}
+  </div>`;
+
+  // o que foi mesmo feito (treinos registados + alongamento)
+  html += `<div class="sec-label">O que aconteceu</div>`;
+  if(!entries.length && !stretchDone){
+    html += `<div class="day-card"><div class="info"><h3>${isFuture?'Ainda não chegou':'Nada registado'}</h3><p>${isFuture?'Volta aqui depois de treinares.':'Sem treinos nem alongamento registados neste dia.'}</p></div></div>`;
+  } else {
+    entries.forEach(e=>{
+      html += `<div class="day-card">
+        <div class="bar" style="background:${e.color||'var(--accent)'}"></div>
+        <div class="icon" style="background:linear-gradient(135deg,${e.color||'var(--accent)'}40,${e.color||'var(--accent)'}14);color:${e.color||'var(--accent)'}">${e.icon||'💪'}</div>
+        <div class="info"><h3>${e.name}</h3><p>${e.sets} séries · ${e.volume}kg volume total</p></div>
+      </div>`;
+    });
+    if(stretchDone) html += `<div class="day-card"><div class="icon" style="background:var(--surface-2);color:var(--stretch)">🧘</div><div class="info"><h3>Alongamento</h3><p>${stretchDone} alongamento${stretchDone!==1?'s':''} feito${stretchDone!==1?'s':''}</p></div></div>`;
+  }
+
+  html += `<button class="day-card" onclick="openSchedule()" style="width:100%;text-align:left;border-style:dashed">
+    <div class="icon" style="background:var(--surface-2);color:var(--text-dim)">🗓️</div>
+    <div class="info"><h3>Editar horário semanal</h3><p>Muda o plano ou a hora de qualquer dia</p></div>
+  </button>`;
+
+  $('#view-daydetail').innerHTML = html;
 }
 
 // um planKey ainda existe e não foi apagado pelo utilizador?
@@ -1964,19 +2027,21 @@ function scheduleOptions(){
 }
 function scheduleRow(dow){
   const val = (STATE.schedule && STATE.schedule[dow]) || '';
+  const time = (STATE.scheduleTime && STATE.scheduleTime[dow]) || '';
   const opts = scheduleOptions();
-  return `<div class="set-item" style="gap:12px">
-    <div class="si-ic" style="width:40px;font-size:12px;font-weight:700">${WD[dow]}</div>
-    <select class="lib-search" style="margin:0;padding:9px 10px" onchange="setScheduleDay(${dow}, this.value)">
+  return `<div class="set-item" style="gap:10px">
+    <div class="si-ic" style="width:36px;font-size:12px;font-weight:700">${WD[dow]}</div>
+    <select class="lib-search" style="margin:0;padding:9px 10px;flex:1.4" onchange="setScheduleDay(${dow}, this.value)">
       ${opts.map(o=>`<option value="${o.key}" ${val===o.key?'selected':''}>${o.icon} ${o.name}</option>`).join('')}
     </select>
+    <input type="time" class="lib-search" style="margin:0;padding:9px 8px;flex:0.9" value="${time}" onchange="setScheduleTime(${dow}, this.value)" title="Hora a que treinas neste dia (opcional)">
   </div>`;
 }
 function renderScheduleView(){
   const html = `
     <button class="backlink" onclick="nav('menu')">‹ Voltar</button>
     <div class="sec-label">🗓️ Horário semanal</div>
-    <div class="intro">Define o que treinas em cada dia. A sugestão do ecrã "Hoje" passa a seguir este horário (com o ciclo PPL automático como reserva nos dias sem plano definido).</div>
+    <div class="intro">Define o que treinas em cada dia, e a que horas (opcional). A sugestão do ecrã "Hoje" passa a seguir este horário (com o ciclo PPL automático como reserva nos dias sem plano definido).</div>
     <div class="set-card">
       ${[1,2,3,4,5,6,0].map(dow=>scheduleRow(dow)).join('')}
     </div>
@@ -1986,6 +2051,11 @@ function renderScheduleView(){
 function setScheduleDay(dow, val){
   STATE.schedule = STATE.schedule || {};
   if(val) STATE.schedule[dow] = val; else delete STATE.schedule[dow];
+  saveState();
+}
+function setScheduleTime(dow, val){
+  STATE.scheduleTime = STATE.scheduleTime || {};
+  if(val) STATE.scheduleTime[dow] = val; else delete STATE.scheduleTime[dow];
   saveState();
 }
 
@@ -2746,7 +2816,7 @@ function toggleInstall(which){
 }
 
 function exportData(){
-  const data = JSON.stringify({log:STATE.log, videos:STATE.videos, lastLoads:STATE.lastLoads, stretchLog:STATE.stretchLog, records:STATE.records, customPlans:STATE.customPlans, customStretchRoutines:STATE.customStretchRoutines, swaps:STATE.swaps, hiddenPlans:STATE.hiddenPlans, schedule:STATE.schedule, health:STATE.health});
+  const data = JSON.stringify({log:STATE.log, videos:STATE.videos, lastLoads:STATE.lastLoads, stretchLog:STATE.stretchLog, records:STATE.records, customPlans:STATE.customPlans, customStretchRoutines:STATE.customStretchRoutines, swaps:STATE.swaps, hiddenPlans:STATE.hiddenPlans, schedule:STATE.schedule, scheduleTime:STATE.scheduleTime, health:STATE.health});
   navigator.clipboard?.writeText(data).then(
     ()=>toast('Dados copiados para a área de transferência'),
     ()=>prompt('Copia os teus dados:', data)
@@ -2767,6 +2837,7 @@ function importData(){
     if(d.swaps) STATE.swaps = {...STATE.swaps, ...d.swaps};
     if(d.hiddenPlans) STATE.hiddenPlans = {...STATE.hiddenPlans, ...d.hiddenPlans};
     if(d.schedule) STATE.schedule = {...STATE.schedule, ...d.schedule};
+    if(d.scheduleTime) STATE.scheduleTime = {...STATE.scheduleTime, ...d.scheduleTime};
     if(d.health) STATE.health = {...STATE.health, ...d.health};
     saveState(); toast('Dados importados ✓'); renderMenu();
   }catch(e){ toast('Dados inválidos'); }
