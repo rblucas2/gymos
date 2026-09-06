@@ -323,6 +323,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;color:inhe
 .stretch-hero .sh-ic{width:44px;height:44px;border-radius:12px;background:rgba(125,211,192,.16);color:var(--stretch);display:grid;place-items:center;font-size:21px;flex-shrink:0}
 .stretch-hero .sh-t{font-size:17px;font-weight:750;letter-spacing:-.3px}
 .stretch-hero .sh-s{font-size:12.5px;color:var(--text-dim);margin-top:2px;font-weight:500}
+.sh-why{font-size:12.5px;color:var(--text-dim);line-height:1.5;background:var(--bg);border-radius:10px;padding:9px 11px;margin-bottom:12px}
 .sh-progwrap{display:flex;align-items:center;gap:10px}
 .sh-progbar{flex:1;height:7px;border-radius:20px;background:var(--surface-2);overflow:hidden}
 .sh-progfill{height:100%;background:linear-gradient(90deg,var(--stretch),var(--accent));border-radius:20px;transition:width .35s ease}
@@ -665,15 +666,21 @@ const STRETCH_POOL = {
   quad:      {n:'Quadríceps', t:'30 seg/lado', pat:'stretch-hold', cue:'Segura o pé atrás, joelhos juntos, anca em ligeira posteriorização.'},
   calf:      {n:'Gémeos + sóleo (parede)', t:'30 seg cada/perna', pat:'stretch-hold', cue:'Mãos na parede, perna atrás esticada (gémeo) e depois joelho dobrado (sóleo).'},
   groin:     {n:'Borboleta (adutores)', t:'30 seg', pat:'stretch-hold', cue:'Sentado, plantas dos pés juntas, joelhos caem para os lados, inclina o tronco levemente à frente.'},
+  // adicionados para dar à rotina diária um propósito claro de prevenção de lesões e mobilidade
+  // específica de futebol (tornozelo, anca, equilíbrio), não só flexibilidade geral de ginásio.
+  ankle:     {n:'Banded Ankle Mobilization', t:'2 × 10/pé', pat:'calf-raise', cue:'Banda ao nível do tálus (baixo). Joelho à frente sobre o pé enquanto a banda puxa o tálus para trás. Essencial para travagens e mudanças de direção.'},
+  hip9090:   {n:'90/90 Hip Switch', t:'2 × 8/lado', pat:'rotation', cue:'Sentado em 90/90, roda ambos os joelhos de lado a lado com tronco direito. Mobilidade de anca em todos os planos, chave para o remate e o passe.'},
+  balance:   {n:'Single-Leg Balance', t:'3 × 30 seg/pé', pat:'plank-hold', cue:'Equilíbrio num pé, progride p/ olhos fechados. Forte evidência científica p/ prevenir entorses no futebol.'},
+  clamshell: {n:'Clamshell c/ banda', t:'2 × 15/lado', pat:'rotation', cue:'Deitado de lado, joelhos a 90°, banda acima dos joelhos. Abre o joelho de cima sem rodar a pélvis. Ativa glúteo médio, protege o joelho em corridas e cortes.'},
 };
 const STRETCH_PLAN = {
-  1:{ title:'Peito & Ombros', icon:'🫁', color:'var(--push)', items:['chest','shoulder','tricep','thoracic','couch'] },
-  2:{ title:'Costas & Core',  icon:'🔙', color:'var(--pull)', items:['lats','figure4','neck','thoracic','couch'] },
-  3:{ title:'Pernas · foco APT', icon:'🦵', color:'var(--legs)', items:['couch','hams','quad','calf','groin'] },
-  4:{ title:'Peito & Ombros', icon:'🫁', color:'var(--push)', items:['chest','tricep','shoulder','couch'] },
-  5:{ title:'Pernas · foco APT', icon:'🦵', color:'var(--legs)', items:['couch','hams','quad','calf','figure4'] },
-  6:{ title:'Mobilidade geral', icon:'🌀', color:'var(--stretch)', items:['thoracic','neck','lats','groin','couch'] },
-  0:{ title:'Recuperação leve', icon:'🌿', color:'var(--stretch)', items:['couch','hams','calf','neck'] },
+  1:{ title:'Peito & Ombros', sub:'Abre peito e ombros — postura para levantamentos e menos tensão ao rematar/cabecear.', icon:'🫁', color:'var(--push)', items:['chest','shoulder','tricep','thoracic','couch'] },
+  2:{ title:'Costas & Core',  sub:'Mobilidade de tronco e core — transferência de força entre pernas e braços (remate, travagem).', icon:'🔙', color:'var(--pull)', items:['lats','figure4','neck','thoracic','couch'] },
+  3:{ title:'Pernas & Futebol · foco APT', sub:'Anca e tornozelo — a base de qualquer travagem, corte ou sprint no futebol.', icon:'⚽', color:'var(--legs)', items:['couch','hams','quad','calf','groin','ankle','hip9090'] },
+  4:{ title:'Peito & Ombros', sub:'Abre peito e ombros — postura para levantamentos e menos tensão ao rematar/cabecear.', icon:'🫁', color:'var(--push)', items:['chest','tricep','shoulder','couch'] },
+  5:{ title:'Pernas & Futebol · foco APT', sub:'Equilíbrio e glúteo médio — prevenção de entorses e lesões de virilha/joelho.', icon:'⚽', color:'var(--legs)', items:['couch','hams','quad','calf','figure4','balance','clamshell'] },
+  6:{ title:'Mobilidade geral', sub:'Reset geral da semana — tronco, anca e pescoço soltos para o fim de semana de jogo.', icon:'🌀', color:'var(--stretch)', items:['thoracic','neck','lats','groin','couch','hip9090'] },
+  0:{ title:'Recuperação leve', sub:'Dia de descanso — o mínimo para manteres a mobilidade sem acumular fadiga.', icon:'🌿', color:'var(--stretch)', items:['couch','hams','calf','neck'] },
 };
 
 /* ============================================================
@@ -2423,6 +2430,7 @@ function renderStretch(){
         <div class="sh-s">Plano de hoje · ${items.length} alongamentos</div>
       </div>
     </div>
+    ${plan.sub ? `<div class="sh-why">${plan.sub}</div>` : ''}
     <div class="sh-progwrap">
       <div class="sh-progbar"><div class="sh-progfill" style="width:${pct}%"></div></div>
       <div class="sh-progtxt">${doneCount}/${items.length}</div>
